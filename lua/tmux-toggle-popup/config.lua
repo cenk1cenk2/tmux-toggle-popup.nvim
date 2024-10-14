@@ -1,6 +1,6 @@
 local M = {}
 
----@class tmux-toggle-popup.Config: tmux-toggle-popup.RunOpts
+---@class tmux-toggle-popup.Config: tmux-toggle-popup.ToggleOpts
 ---@field log_level? number
 
 ---@class tmux-toggle-popup.ConfigUiSize
