@@ -5,7 +5,7 @@ local M = {
 local config = require("tmux-toggle-popup.config")
 local log = require("tmux-toggle-popup.log")
 
----@class tmux-toggle-popup.RunOpts: tmux-toggle-popup.ConfigUiSize
+---@class tmux-toggle-popup.ToggleOpts: tmux-toggle-popup.ConfigUiSize
 ---@field name string
 ---@field socket_name string?
 ---@field id_format string?
@@ -13,8 +13,8 @@ local log = require("tmux-toggle-popup.log")
 ---@field on_init string[]?
 ---@field kill_on_vim_leave boolean?
 
----@type fun(opts?: tmux-toggle-popup.RunOpts): nil
-function M.run(opts)
+---@type fun(opts?: tmux-toggle-popup.ToggleOpts): nil
+function M.toggle(opts)
   local c = config.read()
   opts = vim.tbl_deep_extend("force", {}, c, opts or {})
 
