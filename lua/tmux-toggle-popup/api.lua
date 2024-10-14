@@ -70,20 +70,42 @@ function M.run(opts)
   if opts.kill_on_vim_leave then
     vim.api.nvim_create_autocmd({ "VimLeavePre" }, {
       group = vim.api.nvim_create_augroup("tmux-toggle-popup", { clear = false }),
+      pattern = "*",
       callback = function()
         -- local session_name = require("plenary.job")
+        --   :new({
+        --     command = "tmux",
+        --     args = vim.fn.split(("set %s %s\\; display -p @popup-name\\; set -u %s\\;"):format(opts.name, opts.id_format), " "),
+        --   })
+        --   :sync(1000)
+        --
+        -- if not session_name or #session_name == 0 then
+        --   log.error("Can not get session name for %s", opts.name)
+        --
+        --   return
+        -- end
+        --
+        -- log.debug("Got session name: %s -> %s", opts.name, session_name)
+        --
         -- require("plenary.job")
         --   :new({
         --     command = "tmux",
         --     args = {
         --       "kill-session",
         --       "-t",
-        --       opts.name,
+        --       vim.fn.join(session_name, ""),
         --     },
+        --     on_exit = function(j, code)
+        --       if code > 0 then
+        --         log.debug("Can not kill tmux session: %s", j:stderr_result())
+        --
+        --         return
+        --       end
+        --
+        --       log.debug("Killed tmux session: %s -> %s", opts.name, session_name)
+        --     end,
         --   })
-        --   :sync(5000)
-
-        log:debug("Killed tmux session: %s", opts.name)
+        --   :sync(1000)
       end,
     })
   end
