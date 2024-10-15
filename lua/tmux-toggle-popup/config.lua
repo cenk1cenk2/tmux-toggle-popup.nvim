@@ -7,16 +7,15 @@ local M = {}
 ---@field width? number | (fun(columns: number): number?)
 ---@field height? number | (fun(lines: number): number?)
 
----@class tmux-toggle-popup.State
----@field script string
-
 ---@type tmux-toggle-popup.Config
 local defaults = {
   log_level = vim.log.levels.INFO,
   name = "scratch",
   socket_name = "default",
+  flags = {},
   id_format = "#{b:socket_path}/#{session_name}/nvim/#{b:pane_current_path}/#{@popup_name}",
-  command = nil,
+  command = {},
+  env = {},
   width = function(columns)
     if columns < 180 then
       return math.floor(columns * 0.975)
@@ -35,6 +34,8 @@ local defaults = {
     "set exit-empty on",
     "set -g status on",
   },
+  before_open = {},
+  after_close = {},
   kill_on_vim_leave = false,
 }
 
@@ -42,13 +43,16 @@ local defaults = {
 ---@diagnostic disable-next-line: missing-fields
 M.options = nil
 
+---@class tmux-toggle-popup.State
+---@field script string
+
 ---@type tmux-toggle-popup.State
 ---@diagnostic disable-next-line: missing-fields
 M.state = {}
 
 ---@return tmux-toggle-popup.Config
 function M.read()
-  return M.options or error("Setup was not called.")
+  return vim.deepcopy(M.options) or defaults
 end
 
 ---@param config tmux-toggle-popup.Config
@@ -60,37 +64,15 @@ function M.setup(config)
     log_level = { M.options.log_level, "number", true },
   })
 
+  require("tmux-toggle-popup.api").validate(M.options)
+
   local log = require("tmux-toggle-popup.log").setup({ level = M.options.log_level })
 
   if not require("tmux-toggle-popup.utils").is_tmux() then
-    return config
+    log.debug("Not running inside tmux, aborting setup.")
+
+    return M.options
   end
-
-  require("plenary.job")
-    :new({
-      command = "tmux",
-      args = {
-        "show",
-        "-gqv",
-        "@popup-toggle",
-      },
-      on_exit = function(j, code)
-        vim.schedule(function()
-          if code > 0 then
-            log.error(
-              "tmux-toggle-popup plugin is not installed or not configured properly. Please install it through following instructions on https://github.com/loichyan/tmux-toggle-popup."
-            )
-
-            return
-          end
-
-          M.state.script = vim.fn.join(j:result(), "")
-
-          log.debug("Found tmux-toggle-popup script: %s", M.state.script)
-        end)
-      end,
-    })
-    :start()
 
   return M.options
 end

@@ -4,19 +4,45 @@ local M = {
 
 local config = require("tmux-toggle-popup.config")
 local log = require("tmux-toggle-popup.log")
+local utils = require("tmux-toggle-popup.utils")
 
 ---@class tmux-toggle-popup.ToggleOpts: tmux-toggle-popup.ConfigUiSize
----@field name string
+---@field name string?
 ---@field socket_name string?
+---@field flags string[]?
 ---@field id_format string?
----@field command string?
+---@field command string[]?
+---@field env table<string, string>?
 ---@field on_init string[]?
+---@field before_open string[]?
+---@field after_close string[]?
 ---@field kill_on_vim_leave boolean?
 
----@type fun(opts?: tmux-toggle-popup.ToggleOpts): nil
+---@param opts tmux-toggle-popup.ToggleOpts
+function M.validate(opts)
+  vim.validate({
+    name = { opts.name, "string", true },
+    socket_name = { opts.socket_name, "string", true },
+    flags = { opts.flags, "table", true },
+    id_format = { opts.id_format, "string", true },
+    command = { opts.command, "table", true },
+    env = { opts.env, "table", true },
+    on_init = { opts.on_init, "table", true },
+    before_open = { opts.before_open, "table", true },
+    after_close = { opts.after_close, "table", true },
+    kill_on_vim_leave = { opts.kill_on_vim_leave, "boolean", true },
+    height = { opts.height, { "number", "function" }, true },
+    width = { opts.height, { "number", "function" }, true },
+  })
+end
+
+---@param opts? tmux-toggle-popup.ToggleOpts
 function M.toggle(opts)
   local c = config.read()
+  ---@type tmux-toggle-popup.ToggleOpts
   opts = vim.tbl_deep_extend("force", {}, c, opts or {})
+
+  M.validate(opts)
 
   local ui = require("tmux-toggle-popup.utils").calculate_ui(opts)
 
@@ -26,34 +52,62 @@ function M.toggle(opts)
     return
   end
 
+  opts.id_format = utils.escape_popup_name(opts.id_format)
+
   local args = {
+    "--single-instance",
     "--name",
     opts.name,
     "--socket-name",
     opts.socket_name,
     "--id-format",
     opts.id_format,
-    ("-Ed%s"):format(vim.uv.cwd()),
-    ("-w%s%%"):format(ui.width),
-    ("-h%s%%"):format(ui.height),
+    "-E",
+    ("-d %s"):format(vim.uv.cwd()),
+    ("-w %s%%"):format(ui.width),
+    ("-h %s%%"):format(ui.height),
   }
 
-  table.insert(args, "--on-init")
-  local on_init = { ("setenv NVIM %s"):format(vim.env["NVIM"]) }
-  if opts.on_init then
-    vim.list_extend(on_init, opts.on_init)
+  local sockets = vim.fn.serverlist()
+  if sockets and #sockets > 0 then
+    opts.env["NVIM"] = sockets[1]
   end
-  table.insert(args, table.concat(on_init, [[\; ]]))
+
+  for key, value in pairs(opts.env) do
+    table.insert(opts.flags, "-e " .. key .. "=" .. value)
+  end
+
+  if opts.on_init and #opts.on_init > 0 then
+    table.insert(args, "--on-init")
+    table.insert(args, utils.tmux_escape(opts.on_init))
+  end
+
+  if opts.before_open and #opts.before_open > 0 then
+    table.insert(args, "--before-open")
+    table.insert(args, utils.tmux_escape(opts.before_open))
+  end
+
+  if opts.after_close and #opts.after_close > 0 then
+    table.insert(args, "--after-close")
+    table.insert(args, utils.tmux_escape(opts.after_close))
+  end
+
+  if opts.flags and #opts.flags > 0 then
+    table.insert(args, table.concat(opts.flags, " "))
+  end
 
   if opts.command then
-    table.insert(args, opts.command)
+    vim.list_extend(args, opts.command)
   end
 
-  log.debug("Trying to spawn a new tmux command with: %s %s", config.state.script, vim.fn.join(args, " "))
+  log.debug("Trying to spawn a new tmux command with: %s", args)
   require("plenary.job")
     :new({
-      command = config.state.script,
-      args = args,
+      command = "tmux",
+      args = {
+        "run",
+        vim.fn.join(vim.list_extend({ "#{@popup-toggle}" }, args), " "),
+      },
       detached = true,
       on_exit = function(j, code)
         if code > 0 then
@@ -68,44 +122,41 @@ function M.toggle(opts)
     :start()
 
   if opts.kill_on_vim_leave then
+    -- TODO: add a way to cancel this operation probably with a map of autocmds, session names, so by default it kills it however you can choose to cancel it
     vim.api.nvim_create_autocmd({ "VimLeavePre" }, {
       group = vim.api.nvim_create_augroup("tmux-toggle-popup", { clear = false }),
       pattern = "*",
       callback = function()
-        -- local session_name = require("plenary.job")
-        --   :new({
-        --     command = "tmux",
-        --     args = vim.fn.split(("set %s %s\\; display -p @popup-name\\; set -u %s\\;"):format(opts.name, opts.id_format), " "),
-        --   })
-        --   :sync(1000)
-        --
-        -- if not session_name or #session_name == 0 then
-        --   log.error("Can not get session name for %s", opts.name)
-        --
-        --   return
-        -- end
-        --
-        -- log.debug("Got session name: %s -> %s", opts.name, session_name)
-        --
-        -- require("plenary.job")
-        --   :new({
-        --     command = "tmux",
-        --     args = {
-        --       "kill-session",
-        --       "-t",
-        --       vim.fn.join(session_name, ""),
-        --     },
-        --     on_exit = function(j, code)
-        --       if code > 0 then
-        --         log.debug("Can not kill tmux session: %s", j:stderr_result())
-        --
-        --         return
-        --       end
-        --
-        --       log.debug("Killed tmux session: %s -> %s", opts.name, session_name)
-        --     end,
-        --   })
-        --   :sync(1000)
+        local popup_name = utils.interpolate_popup_name(opts.id_format, opts.name)
+
+        log.debug("Trying to interpolate popup name: %s", popup_name)
+
+        local result = vim
+          .system({
+            "tmux",
+            "display",
+            "-p",
+            popup_name,
+          })
+          :wait(1000)
+
+        local session_name = result.stdout:gsub("[\n]", "")
+        if result.code > 0 or session_name == "" then
+          log.error("Can not get session name for popup: %s", popup_name)
+
+          return
+        end
+
+        log.debug("Got session name for popup: %s -> %s", popup_name, session_name)
+
+        vim.system({
+          "tmux",
+          "kill-session",
+          "-t",
+          session_name,
+        }, {
+          detach = true,
+        })
       end,
     })
   end

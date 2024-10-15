@@ -1,5 +1,7 @@
 local M = {}
 
+M.popup_name_placeholder = "##{@popup_name}"
+
 ---Check if the current environment is tmux.
 ---@return boolean
 function M.is_tmux()
@@ -41,6 +43,31 @@ function M.calculate_ui(ui)
   end
 
   return result
+end
+
+---
+---@param str string
+---@return  string
+function M.escape_popup_name(str)
+  str = str:gsub("#{@popup_name}", M.popup_name_placeholder)
+
+  return str
+end
+
+function M.interpolate_popup_name(str, popup_name)
+  str = str:gsub(M.popup_name_placeholder, popup_name)
+
+  return str
+end
+
+---@param commands string[]
+---@return string
+function M.tmux_escape(commands)
+  local command = table.concat(commands, "; ")
+
+  command = command:gsub(";", "\\;")
+
+  return "'" .. command .. "'"
 end
 
 return M
