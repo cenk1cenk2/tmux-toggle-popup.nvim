@@ -1,6 +1,8 @@
 local M = {}
 
-M.popup_name_placeholder = "##{@popup_name}"
+local log = require("tmux-toggle-popup.log")
+
+local TMUX_POPUP_NAME = "#{@popup_name}"
 
 ---Check if the current environment is tmux.
 ---@return boolean
@@ -48,16 +50,47 @@ end
 ---
 ---@param str string
 ---@return  string
-function M.escape_popup_name(str)
-  str = str:gsub("#{@popup_name}", M.popup_name_placeholder)
+function M.escape_id_format(str)
+  str = str:gsub(TMUX_POPUP_NAME, "#" .. TMUX_POPUP_NAME)
 
   return str
 end
 
-function M.interpolate_popup_name(str, popup_name)
-  str = str:gsub(M.popup_name_placeholder, popup_name)
+---
+---@param str string
+---@param popup_name string
+---@return string
+function M.interpolate_id_format(str, popup_name)
+  str = str:gsub("#?" .. TMUX_POPUP_NAME, popup_name)
 
   return str
+end
+
+---
+---@param id_format string
+---@return string?
+function M.interpolate_session_name(id_format)
+  log.debug("Trying to interpolate popup name: %s", id_format)
+
+  local result = vim
+    .system({
+      "tmux",
+      "display",
+      "-p",
+      id_format,
+    })
+    :wait(1000)
+
+  local session_name = result.stdout:gsub("[\n]", "")
+  if result.code > 0 or session_name == "" then
+    log.error("Can not get session name for popup: %s", id_format)
+
+    return
+  end
+
+  log.debug("Got session name for popup: %s -> %s", id_format, session_name)
+
+  return session_name
 end
 
 ---@param commands string[]

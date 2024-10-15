@@ -1,22 +1,28 @@
 local M = {
-  _ = {},
+  _ = {
+    kill_autocmd = {},
+  },
 }
 
 local config = require("tmux-toggle-popup.config")
 local log = require("tmux-toggle-popup.log")
 local utils = require("tmux-toggle-popup.utils")
 
----@class tmux-toggle-popup.ToggleOpts: tmux-toggle-popup.ConfigUiSize
----@field name string?
+local AUGROUP_KILL = "tmux-toggle-popup-kill"
+
+---@class tmux-toggle-popup.ToggleOpts: tmux-toggle-popup.ConfigUiSize, tmux-toggle-popup.PopupIdentifier
 ---@field socket_name string?
 ---@field flags string[]?
----@field id_format string?
 ---@field command string[]?
 ---@field env table<string, string>?
 ---@field on_init string[]?
 ---@field before_open string[]?
 ---@field after_close string[]?
----@field kill_on_vim_leave boolean?
+---@field kill boolean?
+
+---@class tmux-toggle-popup.PopupIdentifier
+---@field name string?
+---@field id_format string?
 
 ---@param opts tmux-toggle-popup.ToggleOpts
 function M.validate(opts)
@@ -30,7 +36,7 @@ function M.validate(opts)
     on_init = { opts.on_init, "table", true },
     before_open = { opts.before_open, "table", true },
     after_close = { opts.after_close, "table", true },
-    kill_on_vim_leave = { opts.kill_on_vim_leave, "boolean", true },
+    kill = { opts.kill, "boolean", true },
     height = { opts.height, { "number", "function" }, true },
     width = { opts.height, { "number", "function" }, true },
   })
@@ -52,7 +58,7 @@ function M.toggle(opts)
     return
   end
 
-  opts.id_format = utils.escape_popup_name(opts.id_format)
+  opts.id_format = utils.escape_id_format(opts.id_format)
 
   local args = {
     "--single-instance",
@@ -106,7 +112,7 @@ function M.toggle(opts)
       command = "tmux",
       args = {
         "run",
-        vim.fn.join(vim.list_extend({ "#{@popup-toggle}" }, args), " "),
+        table.concat(vim.list_extend({ "#{@popup-toggle}" }, args), " "),
       },
       detached = true,
       on_exit = function(j, code)
@@ -121,34 +127,20 @@ function M.toggle(opts)
     })
     :start()
 
-  if opts.kill_on_vim_leave then
-    -- TODO: add a way to cancel this operation probably with a map of autocmds, session names, so by default it kills it however you can choose to cancel it
-    vim.api.nvim_create_autocmd({ "VimLeavePre" }, {
-      group = vim.api.nvim_create_augroup("tmux-toggle-popup", { clear = false }),
+  if opts.kill then
+    local id_format = utils.interpolate_id_format(opts.id_format, opts.name)
+    local session_name = utils.interpolate_session_name(id_format)
+
+    if not session_name then
+      log.warn("Can not get session name for popup: %s", id_format)
+
+      return
+    end
+
+    M._.kill_autocmd[session_name] = vim.api.nvim_create_autocmd({ "VimLeavePre" }, {
+      group = vim.api.nvim_create_augroup(AUGROUP_KILL, { clear = false }),
       pattern = "*",
       callback = function()
-        local popup_name = utils.interpolate_popup_name(opts.id_format, opts.name)
-
-        log.debug("Trying to interpolate popup name: %s", popup_name)
-
-        local result = vim
-          .system({
-            "tmux",
-            "display",
-            "-p",
-            popup_name,
-          })
-          :wait(1000)
-
-        local session_name = result.stdout:gsub("[\n]", "")
-        if result.code > 0 or session_name == "" then
-          log.error("Can not get session name for popup: %s", popup_name)
-
-          return
-        end
-
-        log.debug("Got session name for popup: %s -> %s", popup_name, session_name)
-
         vim.system({
           "tmux",
           "kill-session",
@@ -160,6 +152,53 @@ function M.toggle(opts)
       end,
     })
   end
+end
+
+--- Aborts the kill process on the matching popup.
+---@param opts? tmux-toggle-popup.PopupIdentifier
+function M.save_session(opts)
+  local c = config.read()
+  ---@type tmux-toggle-popup.ToggleOpts
+  opts = vim.tbl_deep_extend("force", {}, c, opts or {})
+
+  vim.validate({
+    name = { opts.name, "string", true },
+    id_format = { opts.id_format, "string", true },
+  })
+
+  local id_format = utils.interpolate_id_format(opts.id_format, opts.name)
+  local session_name = utils.interpolate_session_name(id_format)
+
+  if not session_name then
+    log.warn("Can not get session name for popup: %s", id_format)
+
+    return
+  end
+
+  local id = M._.kill_autocmd[session_name]
+
+  if not id then
+    return
+  end
+
+  vim.api.nvim_del_autocmd(id)
+
+  M._.kill_autocmd[session_name] = nil
+
+  log.info("Saved tmux session: %s", session_name)
+end
+
+--- Aborts all the kill autocommands.
+function M.save_all()
+  pcall(vim.api.nvim_del_augroup_by_name, AUGROUP_KILL)
+
+  if vim.tbl_isempty(M._.kill_autocmd) then
+    return
+  end
+
+  log.info("Saved tmux sessions: %s", table.concat(vim.tbl_keys(M._.kill_autocmd), ", "))
+
+  M._.kill_autocmd = {}
 end
 
 return M

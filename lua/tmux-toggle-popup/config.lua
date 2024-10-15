@@ -36,7 +36,7 @@ local defaults = {
   },
   before_open = {},
   after_close = {},
-  kill_on_vim_leave = false,
+  kill = true,
 }
 
 ---@type tmux-toggle-popup.Config
@@ -52,7 +52,7 @@ M.state = {}
 
 ---@return tmux-toggle-popup.Config
 function M.read()
-  return vim.deepcopy(M.options) or defaults
+  return vim.deepcopy(M.options) or error("Plugin is not configured, call setup() first.")
 end
 
 ---@param config tmux-toggle-popup.Config
