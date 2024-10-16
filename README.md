@@ -22,9 +22,19 @@ Since this plugin directly wraps around the original tmux plugin [`tmux-toggle-p
 An example for this would be in your `tmux.conf` file is as follows.
 
 ```tmux
+# install with tpm
+set -g @plugin "loichyan/tmux-toggle-popup"
+
 # I am binding my leader C-a to open up a popup window in the tmux configuration.
 # This same keybinding from tmux will be also used to close up any open popup window with `--single-instance` flag.
 bind C-a run "#{@popup-toggle} --single-instance --name scratch -Ed'#{pane_current_path}' -w98% -h98%"
+
+# install tmux plugins
+if "test ! -d ~/.config/tmux/plugins/tpm" \
+   "run 'git clone https://github.com/tmux-plugins/tpm ~/.config/tmux/plugins/tpm && ~/.config/tmux/plugins/tpm/bin/install_plugins'"
+
+# Initialize TMUX plugin manager (keep this line at the very bottom of tmux.conf)
+run '~/.config/tmux/plugins/tpm/tpm'
 ```
 
 ### `lazy.nvim`
@@ -77,6 +87,10 @@ The configuration format looks like follows and adjust either the `tmux` plugin 
 ---@field border_style string? --- -S sets the style for the popup border (see “STYLES”).
 ---@field target_pane string? --- target-pane
 ---@field title ((fun (session: tmux-toggle-popup.Session, name: string): string | nil) | string)? --- -T is a format for the popup title (see “FORMATS”).
+
+---@class tmux-toggle-popup.ConfigUiSize
+---@field width? number | (fun(columns: number): number?) --- calculate the width of the popup from the terminal columns
+---@field height? number | (fun(lines: number): number?) --- calculate the height of the popup from the terminal lines
 
 ```
 
