@@ -101,7 +101,7 @@ Setup function will set the defaults for your any other API calls like the `open
 ---@class tmux-toggle-popup.ToggleKeymap
 ---@field key string? --- This is a tmux keybinding so it should be in the format that is acceptable to tmux.
 ---@field global boolean? --- Global passes -n flag to the tmux keybinding.
----@field action fun(session: tmux-toggle-popup.Session, name: string): string --- Action to perform default is to detach from the session
+---@field action (fun(session: tmux-toggle-popup.Session, name: string): string)? --- Action to perform default is to detach from the session
 
 ```
 
