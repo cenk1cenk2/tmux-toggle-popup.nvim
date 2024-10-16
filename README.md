@@ -136,15 +136,28 @@ So imagine that you have mapped this popup to `<F1>` on your `neovim` instance a
 You can get around this issue by setting a toggle on the `tmux` side through this plugin, this will temporarily add a keybinding to your designated one. Whenever you open a popup, this keybinding will be added to the `tmux` configuration and on close a callback will clear it up. So try not to overwrite your existing bindings. This solution is currently good enough but I am open to any suggestion on a better flow.
 
 ```lua
+--- per command
 require("tmux-toggle-popup").open({
   toggle = {
     -- this will be a tmux keybinding so it should be in the format that is acceptable to tmux
     key = "F1",
-    -- you can add `-n` flag to make this keybinding global
+    -- this value is for tmux as well, you can add `-n` flag to make this keybinding global
+    global = true,
+  },
+})
+
+--- globally
+require("tmux-toggle-popup").open({
+  toggle = {
+    -- this will be a tmux keybinding so it should be in the format that is acceptable to tmux
+    key = "F1",
+    -- this value is for tmux as well, you can add `-n` flag to make this keybinding global
     global = true,
   },
 })
 ```
+
+Just becareful that session settings are shared between your current session and the popup, so if you make a binding on the popup, that ultimately affects your current session as well.
 
 ### Save Your Session
 
