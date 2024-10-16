@@ -15,28 +15,30 @@ end
 ---@return tmux-toggle-popup.ConfigUiSize
 function M.calculate_ui(ui)
   local result = vim.deepcopy(ui)
+  local columns = vim.env["COLUMNS"] or vim.o.columns
+  local lines = vim.env["LINES"] or vim.o.lines
 
   if type(ui.width) == "number" and ui.width <= 1 and ui.width > 0 then
-    result.width = math.floor(vim.o.columns * ui.width)
+    result.width = math.floor(columns * ui.width)
   elseif type(ui.width) == "function" then
-    result.width = ui.width(vim.o.columns)
+    result.width = ui.width(columns)
     if type(result.width) == "number" and result.width <= 1 and result.width > 0 then
       result.width = M.calculate_ui(result).width
     end
   end
 
   if type(ui.height) == "number" and ui.height <= 1 and ui.height > 0 then
-    result.height = math.floor(vim.o.lines * ui.height)
+    result.height = math.floor(lines * ui.height)
   elseif type(ui.height) == "function" then
-    result.height = ui.height(vim.o.lines)
+    result.height = ui.height(lines)
     if type(result.height) == "number" and result.height <= 1 and result.height > 0 then
       result.height = M.calculate_ui(result).height
     end
   end
 
   -- normalize to percentage
-  result.width = math.floor(result.width / vim.o.columns * 100)
-  result.height = math.floor(result.height / vim.o.lines * 100)
+  result.width = math.floor(result.width / columns * 100)
+  result.height = math.floor(result.height / lines * 100)
 
   if result.width < 0 or result.width > 100 then
     error("Invalid width, after the calculations it should be a percentage: " .. result.width)

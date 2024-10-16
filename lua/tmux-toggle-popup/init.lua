@@ -1,8 +1,11 @@
 local M = {
   setup = require("tmux-toggle-popup.config").setup,
-  toggle = require("tmux-toggle-popup.api").toggle,
+  open = require("tmux-toggle-popup.api").open,
+  save = require("tmux-toggle-popup.api").save,
   save_all = require("tmux-toggle-popup.api").save_all,
-  save_session = require("tmux-toggle-popup.api").save_session,
+  kill = require("tmux-toggle-popup.api").kill,
+  kill_all = require("tmux-toggle-popup.api").kill_all,
+  format_identifier = require("tmux-toggle-popup.api").format_identifier,
 }
 
 return M

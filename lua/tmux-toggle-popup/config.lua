@@ -1,6 +1,6 @@
 local M = {}
 
----@class tmux-toggle-popup.Config: tmux-toggle-popup.ToggleOpts
+---@class tmux-toggle-popup.Config: tmux-toggle-popup.Session
 ---@field log_level? number
 
 ---@class tmux-toggle-popup.ConfigUiSize
@@ -12,7 +12,17 @@ local defaults = {
   log_level = vim.log.levels.INFO,
   name = "scratch",
   socket_name = "default",
-  flags = {},
+  flags = {
+    close_on_exit = true,
+    start_directory = function()
+      local cwd = vim.uv.cwd()
+
+      return cwd
+    end,
+    title = function(session)
+      return session.name
+    end,
+  },
   id_format = "#{b:socket_path}/#{session_name}/nvim/#{b:pane_current_path}/#{@popup_name}",
   command = {},
   env = {},
@@ -43,13 +53,6 @@ local defaults = {
 ---@diagnostic disable-next-line: missing-fields
 M.options = nil
 
----@class tmux-toggle-popup.State
----@field script string
-
----@type tmux-toggle-popup.State
----@diagnostic disable-next-line: missing-fields
-M.state = {}
-
 ---@return tmux-toggle-popup.Config
 function M.read()
   return vim.deepcopy(M.options) or error("Plugin is not configured, call setup() first.")
@@ -64,7 +67,7 @@ function M.setup(config)
     log_level = { M.options.log_level, "number", true },
   })
 
-  require("tmux-toggle-popup.api").validate(M.options)
+  require("tmux-toggle-popup.api").validate_session_options(M.options)
 
   local log = require("tmux-toggle-popup.log").setup({ level = M.options.log_level })
 
