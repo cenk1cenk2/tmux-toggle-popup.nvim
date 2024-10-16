@@ -13,7 +13,7 @@ local defaults = {
   name = "scratch",
   socket_name = "default",
   flags = {
-    close_on_exit = true,
+    close_on_exit = "on-success",
     start_directory = function()
       local cwd = vim.uv.cwd()
 
