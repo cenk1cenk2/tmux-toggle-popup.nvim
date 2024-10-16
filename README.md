@@ -150,8 +150,8 @@ require("tmux-toggle-popup").open({
   },
 })
 
---- globally
-require("tmux-toggle-popup").open({
+--- globally through the setup function
+require("tmux-toggle-popup").setup({
   toggle = {
     -- this will be a tmux keybinding so it should be in the format that is acceptable to tmux
     key = "F1",
