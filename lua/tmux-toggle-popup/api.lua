@@ -40,6 +40,7 @@ local AUGROUP_TO_KILL = "tmux-toggle-popup.to-kill"
 ---@class tmux-toggle-popup.ToggleKeymap
 ---@field key string
 ---@field global boolean?
+---@field action string?
 
 ---@class tmux-toggle-popup.SessionIdentifier
 ---@field name string?
@@ -131,7 +132,7 @@ function M.open(opts)
     end
     local f = " " .. table.concat(flags, " ")
 
-    table.insert(opts.on_init, ("bind%s %s detach -s %s"):format(f, opts.toggle.key, session))
+    table.insert(opts.on_init, ("bind%s %s %s -s %s"):format(f, opts.toggle.key, opts.toggle.action or "detach", session))
     table.insert(opts.after_close, ("unbind%s %s"):format(f, opts.toggle.key))
   end
 
