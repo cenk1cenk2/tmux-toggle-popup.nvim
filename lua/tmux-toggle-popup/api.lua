@@ -124,7 +124,6 @@ function M.open(opts)
   if sockets and #sockets > 0 then
     local socket = sockets[1]
     opts.env["NVIM"] = socket
-    opts.env["NVIM_LISTEN_ADDRESS"] = socket
   end
 
   if opts.toggle and opts.toggle.key then
