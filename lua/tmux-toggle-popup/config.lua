@@ -28,17 +28,17 @@ local defaults = {
   env = {},
   width = function(columns)
     if columns < 180 then
-      return math.floor(columns * 0.975)
+      return columns * 0.975
     end
 
-    return math.floor(columns * 0.9)
+    return columns * 0.9
   end,
   height = function(lines)
     if lines < 60 then
-      return math.floor(lines * 0.95)
+      return lines * 0.95
     end
 
-    return math.floor(lines * 0.9)
+    return lines * 0.9
   end,
   on_init = {
     "set exit-empty on",

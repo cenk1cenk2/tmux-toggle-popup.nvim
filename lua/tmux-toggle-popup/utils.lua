@@ -21,7 +21,8 @@ function M.calculate_ui(ui)
   if type(ui.width) == "number" and ui.width <= 1 and ui.width > 0 then
     result.width = math.floor(columns * ui.width)
   elseif type(ui.width) == "function" then
-    result.width = ui.width(columns)
+    ---@diagnostic disable-next-line: param-type-mismatch
+    result.width = math.floor(ui.width(columns))
     if type(result.width) == "number" and result.width <= 1 and result.width > 0 then
       result.width = M.calculate_ui(result).width
     end
@@ -30,7 +31,8 @@ function M.calculate_ui(ui)
   if type(ui.height) == "number" and ui.height <= 1 and ui.height > 0 then
     result.height = math.floor(lines * ui.height)
   elseif type(ui.height) == "function" then
-    result.height = ui.height(lines)
+    ---@diagnostic disable-next-line: param-type-mismatch
+    result.height = math.floor(ui.height(lines))
     if type(result.height) == "number" and result.height <= 1 and result.height > 0 then
       result.height = M.calculate_ui(result).height
     end

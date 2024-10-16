@@ -94,7 +94,7 @@ Setup function will set the defaults for your any other API calls like the `open
 ---@field popup_style string? --- -s sets the style for the popup (see “STYLES”).
 ---@field border_style string? --- -S sets the style for the popup border (see “STYLES”).
 ---@field target_pane string? --- target-pane
----@field title ((fun (session: tmux-toggle-popup.Session, name: string): string | nil) | string)? --- -T is a format for the popup title (see “FORMATS”).
+---@field title ((fun (session: tmux-toggle-popup.Session): string) | string)? --- -T is a format for the popup title (see “FORMATS”).
 
 -- The keymap configuration does reside in the .toggle table.
 

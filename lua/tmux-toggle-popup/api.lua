@@ -35,7 +35,7 @@ local AUGROUP_TO_KILL = "tmux-toggle-popup.to-kill"
 ---@field popup_style string? --- -s sets the style for the popup (see “STYLES”).
 ---@field border_style string? --- -S sets the style for the popup border (see “STYLES”).
 ---@field target_pane string? --- target-pane
----@field title ((fun (session: tmux-toggle-popup.Session, name: string): string | nil) | string)? --- -T is a format for the popup title (see “FORMATS”).
+---@field title ((fun (session: tmux-toggle-popup.Session): string) | string)? --- -T is a format for the popup title (see “FORMATS”).
 
 ---@class tmux-toggle-popup.ToggleKeymap
 ---@field key string
@@ -377,11 +377,7 @@ function M.parse_flags(opts)
 
   if opts.flags.title then
     if type(opts.flags.title) == "function" then
-      local session = M.format(opts)
-
-      if session then
-        opts.flags.title = opts.flags.title(opts, session)
-      end
+      opts.flags.title = opts.flags.title(opts)
     end
 
     if opts.flags.title ~= nil then
