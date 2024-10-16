@@ -1,7 +1,5 @@
 local M = {}
 
-local log = require("tmux-toggle-popup.log")
-
 local TMUX_POPUP_NAME = "#{@popup_name}"
 
 ---Check if the current environment is tmux.
