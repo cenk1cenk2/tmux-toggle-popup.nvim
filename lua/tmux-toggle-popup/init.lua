@@ -5,7 +5,7 @@ local M = {
   save_all = require("tmux-toggle-popup.api").save_all,
   kill = require("tmux-toggle-popup.api").kill,
   kill_all = require("tmux-toggle-popup.api").kill_all,
-  format_identifier = require("tmux-toggle-popup.api").format_identifier,
+  format = require("tmux-toggle-popup.api").format,
 }
 
 return M

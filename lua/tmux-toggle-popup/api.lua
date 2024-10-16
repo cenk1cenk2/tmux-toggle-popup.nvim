@@ -104,9 +104,7 @@ function M.open(opts)
     return
   end
 
-  opts.id_format = utils.escape_id_format(opts.id_format)
-
-  local session_name, id_format = M.format_identifier(opts)
+  local session = M.format(opts)
 
   local args = {
     "--toggle",
@@ -115,7 +113,7 @@ function M.open(opts)
     "--socket-name",
     opts.socket_name,
     "--id-format",
-    opts.id_format,
+    utils.escape_id_format(opts.id_format),
     ("-w%s%%"):format(ui.width),
     ("-h%s%%"):format(ui.height),
   }
@@ -133,7 +131,7 @@ function M.open(opts)
     end
     local f = " " .. table.concat(flags, " ")
 
-    table.insert(opts.on_init, ("bind%s %s detach -s %s"):format(f, opts.toggle.key, session_name))
+    table.insert(opts.on_init, ("bind%s %s detach -s %s"):format(f, opts.toggle.key, session))
     table.insert(opts.after_close, ("unbind%s %s"):format(f, opts.toggle.key))
   end
 
@@ -143,17 +141,17 @@ function M.open(opts)
 
   if opts.on_init and #opts.on_init > 0 then
     table.insert(args, "--on-init")
-    table.insert(args, utils.tmux_escape(opts.on_init, opts, session_name))
+    table.insert(args, utils.tmux_escape(opts.on_init, opts, session))
   end
 
   if opts.before_open and #opts.before_open > 0 then
     table.insert(args, "--before-open")
-    table.insert(args, utils.tmux_escape(opts.before_open, opts, session_name))
+    table.insert(args, utils.tmux_escape(opts.before_open, opts, session))
   end
 
   if opts.after_close and #opts.after_close > 0 then
     table.insert(args, "--after-close")
-    table.insert(args, utils.tmux_escape(opts.after_close, opts, session_name))
+    table.insert(args, utils.tmux_escape(opts.after_close, opts, session))
   end
 
   vim.list_extend(args, M.parse_flags(opts))
@@ -181,21 +179,21 @@ function M.open(opts)
     end,
   }):start()
 
-  if not session_name then
-    log.warn("Can not get session name for popup: %s", id_format)
+  if not session then
+    log.warn("Can not get session name for popup: %s", opts.id_format)
 
     return
   end
 
-  M._.sessions[session_name] = opts
+  M._.sessions[session] = opts
 
   if opts.kill then
-    M._.autocmd_to_kill[session_name] = vim.api.nvim_create_autocmd({ "VimLeavePre" }, {
+    M._.autocmd_to_kill[session] = vim.api.nvim_create_autocmd({ "VimLeavePre" }, {
       group = vim.api.nvim_create_augroup(AUGROUP_TO_KILL, { clear = false }),
       pattern = "*",
       callback = function()
         ---@diagnostic disable-next-line: missing-fields
-        M.kill_session(session_name, { detached = true }):start()
+        M.kill_session(session, { detached = true }):start()
       end,
     })
   end
@@ -210,15 +208,15 @@ function M.save(opts)
 
   M.validate_session_identifier(opts)
 
-  local session_name, id_format = M.format_identifier(opts)
+  local session = M.format(opts)
 
-  if not session_name then
-    log.warn("Can not get session name for popup: %s", id_format)
+  if not session then
+    log.warn("Can not get session name for popup: %s", opts.id_format)
 
     return
   end
 
-  local id = M._.autocmd_to_kill[session_name]
+  local id = M._.autocmd_to_kill[session]
 
   if not id then
     return
@@ -226,9 +224,9 @@ function M.save(opts)
 
   vim.api.nvim_del_autocmd(id)
 
-  M._.autocmd_to_kill[session_name] = nil
+  M._.autocmd_to_kill[session] = nil
 
-  log.info("Saved tmux session: %s", session_name)
+  log.info("Saved tmux session: %s", session)
 end
 
 --- Aborts all the kill autocommands.
@@ -252,20 +250,20 @@ function M.kill(opts)
 
   M.validate_session_identifier(opts)
 
-  local session_name, id_format = M.format_identifier(opts)
+  local session = M.format(opts)
 
-  if not session_name then
-    log.warn("Can not get session name for popup: %s", id_format)
+  if not session then
+    log.warn("Can not get session name for popup: %s", opts.id_format)
 
     return
   end
 
   ---@diagnostic disable-next-line: missing-fields
-  M.kill_session(session_name, { detached = true }):start()
+  M.kill_session(session, { detached = true }):start()
 
-  M._.sessions[session_name] = nil
+  M._.sessions[session] = nil
 
-  log.info("Killed tmux session: %s -> %s", opts.name, session_name)
+  log.info("Killed tmux session: %s -> %s", opts.name, session)
 end
 
 --- Kills all managed sessions.
@@ -274,9 +272,9 @@ function M.kill_all()
     return
   end
 
-  for _, session_name in ipairs(vim.tbl_keys(M._.sessions)) do
+  for _, session in ipairs(vim.tbl_keys(M._.sessions)) do
     ---@diagnostic disable-next-line: missing-fields
-    M.kill_session(session_name, { detached = true }):start()
+    M.kill_session(session, { detached = true }):start()
   end
 
   log.info("Killed tmux sessions: %s", table.concat(vim.tbl_keys(M._.sessions), ", "))
@@ -285,12 +283,47 @@ function M.kill_all()
 end
 
 ---@param opts tmux-toggle-popup.SessionIdentifier
----@return string?, string?
-function M.format_identifier(opts)
-  local id_format = utils.interpolate_id_format(opts.id_format, opts.name)
-  local session_name = utils.interpolate_session_name(id_format)
+---@return string?
+function M.format(opts)
+  log.debug("Trying to interpolate popup name: %s", opts.id_format)
 
-  return session_name, id_format
+  local result = vim
+    .system({
+      "tmux",
+      "set",
+      "@popup_name",
+      opts.name,
+      ";",
+      "display",
+      "-p",
+      opts.id_format,
+    })
+    :wait(1000)
+
+  Job:new({
+    command = "tmux",
+    args = {
+      "set",
+      "-u",
+      "@popup-name",
+      opts.name,
+    },
+    detached = true,
+  }):start()
+
+  local session = result.stdout:gsub("[\n]", "")
+  if result.code > 0 or session == "" then
+    log.debug("Can not get session name for popup: %s: %s", opts.name, opts.id_format)
+
+    return
+  end
+
+  -- dont know why display -p fixes this formatting errors, maybe figure that out later
+  session = session:gsub("[. ]", "_")
+
+  log.debug("Got session name for popup: %s: %s -> %s", opts.name, opts.id_format, session)
+
+  return session
 end
 
 ---@param opts tmux-toggle-popup.Session
@@ -344,11 +377,10 @@ function M.parse_flags(opts)
 
   if opts.flags.title then
     if type(opts.flags.title) == "function" then
-      local id_format = utils.interpolate_id_format(opts.id_format, opts.name)
-      local session_name = utils.interpolate_session_name(id_format)
+      local session = M.format(opts)
 
-      if session_name then
-        opts.flags.title = opts.flags.title(opts, session_name)
+      if session then
+        opts.flags.title = opts.flags.title(opts, session)
       end
     end
 
@@ -361,16 +393,16 @@ function M.parse_flags(opts)
 end
 
 ---
----@param session_name string
+---@param session string
 ---@param opts? Job
 ---@return Job
-function M.kill_session(session_name, opts)
+function M.kill_session(session, opts)
   return Job:new(vim.tbl_extend("force", opts or {}, {
     command = "tmux",
     args = {
       "kill-session",
       "-t",
-      session_name,
+      session,
     },
   }))
 end

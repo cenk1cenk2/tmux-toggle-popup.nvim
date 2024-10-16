@@ -203,3 +203,11 @@ You can also kill everything in the current session.
 ```lua
 require("tmux-toggle-popup").kill_all()
 ```
+
+### Get Session Name for Given Setup
+
+You can get the session name for a given setup.
+
+```lua
+require("tmux-toggle-popup").format({ name = "lazygit" })
+```
