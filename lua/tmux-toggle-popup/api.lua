@@ -122,7 +122,9 @@ function M.open(opts)
 
   local sockets = vim.fn.serverlist()
   if sockets and #sockets > 0 then
-    opts.env["NVIM"] = sockets[1]
+    local socket = sockets[1]
+    opts.env["NVIM"] = socket
+    opts.env["NVIM_LISTEN_ADDRESS"] = socket
   end
 
   if opts.toggle and opts.toggle.key then
