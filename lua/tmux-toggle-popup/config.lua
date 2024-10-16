@@ -67,9 +67,9 @@ function M.setup(config)
     log_level = { M.options.log_level, "number", true },
   })
 
+  require("tmux-toggle-popup.api").validate_session_identifier(M.options)
   require("tmux-toggle-popup.api").validate_session_options(M.options)
   require("tmux-toggle-popup.api").validate_session_flags(M.options.flags)
-  require("tmux-toggle-popup.api").validate_session_id_format(M.options.id_format)
 
   local log = require("tmux-toggle-popup.log").setup({ level = M.options.log_level })
 
