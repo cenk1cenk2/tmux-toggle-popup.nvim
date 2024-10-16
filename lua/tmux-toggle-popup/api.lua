@@ -18,9 +18,10 @@ local AUGROUP_TO_KILL = "tmux-toggle-popup.to-kill"
 ---@field socket_name string?
 ---@field command string[]?
 ---@field env table<string, string>?
----@field on_init string[]?
----@field before_open string[]?
----@field after_close string[]?
+---@field on_init ((fun (session: tmux-toggle-popup.Session, name?: string): string) | string)[]?
+---@field before_open ((fun (session: tmux-toggle-popup.Session, name?: string): string) | string)[]?
+---@field after_close ((fun (session: tmux-toggle-popup.Session, name?: string): string) | string)[]?
+---@field toggle tmux-toggle-popup.ToggleKeymap?
 ---@field kill boolean?
 ---@field flags tmux-toggle-popup.Flags?
 
@@ -35,6 +36,10 @@ local AUGROUP_TO_KILL = "tmux-toggle-popup.to-kill"
 ---@field border_style string? --- -S sets the style for the popup border (see “STYLES”).
 ---@field target_pane string? --- target-pane
 ---@field title ((fun (session: tmux-toggle-popup.Session, name: string): string | nil) | string)? --- -T is a format for the popup title (see “FORMATS”).
+
+---@class tmux-toggle-popup.ToggleKeymap
+---@field key string
+---@field global boolean?
 
 ---@class tmux-toggle-popup.SessionIdentifier
 ---@field name string?
@@ -58,6 +63,7 @@ function M.validate_session_options(opts)
     on_init = { opts.on_init, "table", true },
     before_open = { opts.before_open, "table", true },
     after_close = { opts.after_close, "table", true },
+    toggle = { opts.toggle, "table", true },
     kill = { opts.kill, "boolean", true },
     height = { opts.height, { "number", "function" }, true },
     width = { opts.height, { "number", "function" }, true },
@@ -100,6 +106,8 @@ function M.open(opts)
 
   opts.id_format = utils.escape_id_format(opts.id_format)
 
+  local session_name, id_format = M.format_identifier(opts)
+
   local args = {
     "--toggle",
     "--name",
@@ -117,23 +125,34 @@ function M.open(opts)
     opts.env["NVIM"] = sockets[1]
   end
 
+  if opts.toggle and opts.toggle.key then
+    local flags = {}
+    if opts.toggle.global then
+      table.insert(flags, "-n")
+    end
+    local f = " " .. table.concat(flags, " ")
+
+    table.insert(opts.on_init, ("bind%s %s detach -s %s"):format(f, opts.toggle.key, session_name))
+    table.insert(opts.after_close, ("unbind%s %s"):format(f, opts.toggle.key))
+  end
+
   for key, value in pairs(opts.env) do
     vim.list_extend(args, { "-e", key .. [[="]] .. value .. [["]] })
   end
 
   if opts.on_init and #opts.on_init > 0 then
     table.insert(args, "--on-init")
-    table.insert(args, utils.tmux_escape(opts.on_init))
+    table.insert(args, utils.tmux_escape(opts.on_init, opts, session_name))
   end
 
   if opts.before_open and #opts.before_open > 0 then
     table.insert(args, "--before-open")
-    table.insert(args, utils.tmux_escape(opts.before_open))
+    table.insert(args, utils.tmux_escape(opts.before_open, opts, session_name))
   end
 
   if opts.after_close and #opts.after_close > 0 then
     table.insert(args, "--after-close")
-    table.insert(args, utils.tmux_escape(opts.after_close))
+    table.insert(args, utils.tmux_escape(opts.after_close, opts, session_name))
   end
 
   vim.list_extend(args, M.parse_flags(opts))
@@ -160,8 +179,6 @@ function M.open(opts)
       log.debug("Finished tmux command: %s", j:result())
     end,
   }):start()
-
-  local session_name, id_format = M.format_identifier(opts)
 
   if not session_name then
     log.warn("Can not get session name for popup: %s", id_format)

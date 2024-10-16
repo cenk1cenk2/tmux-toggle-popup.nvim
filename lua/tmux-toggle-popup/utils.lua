@@ -85,7 +85,7 @@ function M.interpolate_session_name(id_format)
 
   local session_name = result.stdout:gsub("[\n]", "")
   if result.code > 0 or session_name == "" then
-    log.error("Can not get session name for popup: %s", id_format)
+    log.debug("Can not get session name for popup: %s", id_format)
 
     return
   end
@@ -95,14 +95,18 @@ function M.interpolate_session_name(id_format)
   return session_name
 end
 
----@param commands string[]
+---@param commands ((fun (session: tmux-toggle-popup.Session, name?: string): string) | string[])?
 ---@return string
-function M.tmux_escape(commands)
-  local command = table.concat(commands, "; ")
+function M.tmux_escape(commands, session, name)
+  ---@diagnostic disable-next-line: param-type-mismatch
+  for _, command in pairs(commands) do
+    if type(commands) == "function" then
+      command = command(session, name)
+    end
+  end
 
-  command = command:gsub(";", "\\;")
-
-  return "'" .. command .. "'"
+  ---@diagnostic disable-next-line: param-type-mismatch
+  return "'" .. table.concat(commands, "; "):gsub(";", "\\;") .. "'"
 end
 
 return M

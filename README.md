@@ -61,6 +61,8 @@ You can find the default configuration file and available options [here](https:/
 
 The configuration format looks like follows and adjust either the `tmux` plugin variables or the `tmux` popup variables.
 
+Setup function will set the defaults for your any other API calls like the `open` function.
+
 #### Session Defaults
 
 ```lua
@@ -71,6 +73,7 @@ The configuration format looks like follows and adjust either the `tmux` plugin 
 ---@field on_init string[]? --- Tmux commands that are going to be run insdie the popup after being created.
 ---@field before_open string[]? --- Tmux commands that are going to be run on the main session the popup is opened.
 ---@field after_close string[]? --- Tmux commands that are going to be run on the main session the popup is closed.
+---@field toggle tmux-toggle-popup.ToggleKeymap?
 ---@field kill boolean? --- Kill the session, on `VimLeavePre` event.
 ---@field flags tmux-toggle-popup.Flags? --- Flags for passing in the tmux popup command.
 
@@ -87,6 +90,10 @@ The configuration format looks like follows and adjust either the `tmux` plugin 
 ---@field border_style string? --- -S sets the style for the popup border (see “STYLES”).
 ---@field target_pane string? --- target-pane
 ---@field title ((fun (session: tmux-toggle-popup.Session, name: string): string | nil) | string)? --- -T is a format for the popup title (see “FORMATS”).
+
+---@class tmux-toggle-popup.ToggleKeymap
+---@field key string
+---@field global boolean?
 
 ---@class tmux-toggle-popup.ConfigUiSize
 ---@field width? number | (fun(columns: number): number?) --- calculate the width of the popup from the terminal columns
@@ -112,16 +119,31 @@ Bind this actions to any keybinding or commands you like to interact with them.
 require("tmux-toggle-popup").open()
 ```
 
-**Since `tmux` popup will steal the focus from `neovim` you have to use your global keybinding that is set for the `tmux` plugin.**
-
-So imagine that you have mapped this popup to `<F1>` on your `neovim` instance and you have set the `tmux` popup to `leader<C-a>` on your `tmux` configuration as describe above. I can open up a `neovim` popup for my terminal with `<F1>`, however since `tmux` popup window will steal the focus, you can close it with your global `tmux` binding of `leader<C-a>`
-
 You can pass any of the session options as a argument to the `open` function.
 
 An example to this might be a keybind to toggle `lazygit`.
 
 ```lua
 require("tmux-toggle-popup").open({ name = "lazygit", command = { "lazygit" }, on_init = { "set status off" } })
+```
+
+### Toggle a Session
+
+**Since `tmux` popup will steal the focus from `neovim` you have to use your global keybinding that is set for the `tmux` plugin.**
+
+So imagine that you have mapped this popup to `<F1>` on your `neovim` instance and you have set the `tmux` popup to `leader<C-a>` on your `tmux` configuration as describe above. I can open up a `neovim` popup for my terminal with `<F1>`, however since `tmux` popup window will steal the focus, you can close it with your global `tmux` binding of `leader<C-a>`
+
+You can get around this issue by setting a toggle on the `tmux` side through this plugin, this will temporarily add a keybinding to your designated one. Whenever you open a popup, this keybinding will be added to the `tmux` configuration and on close a callback will clear it up. So try not to overwrite your existing bindings. This solution is currently good enough but I am open to any suggestion on a better flow.
+
+```lua
+require("tmux-toggle-popup").open({
+  toggle = {
+    -- this will be a tmux keybinding so it should be in the format that is acceptable to tmux
+    key = "F1",
+    -- you can add `-n` flag to make this keybinding global
+    global = true,
+  },
+})
 ```
 
 ### Save Your Session
