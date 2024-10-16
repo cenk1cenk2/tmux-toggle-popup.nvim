@@ -1,4 +1,4 @@
-# tmux-toggle-popup
+# tmux-toggle-popup.nvim
 
 This plugin wraps around the [`tmux-toggle-popup`](https://github.com/loichyan/tmux-toggle-popup) plugin to provide a interface to create `tmux` popup windows in `neovim`.
 

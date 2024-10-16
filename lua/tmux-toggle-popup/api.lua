@@ -101,7 +101,7 @@ function M.open(opts)
   opts.id_format = utils.escape_id_format(opts.id_format)
 
   local args = {
-    "--single-instance",
+    "--toggle",
     "--name",
     opts.name,
     "--socket-name",
