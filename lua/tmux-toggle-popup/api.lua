@@ -38,9 +38,9 @@ local AUGROUP_TO_KILL = "tmux-toggle-popup.to-kill"
 ---@field title ((fun (session: tmux-toggle-popup.Session): string) | string)? --- -T is a format for the popup title (see “FORMATS”).
 
 ---@class tmux-toggle-popup.ToggleKeymap
----@field key string
+---@field key string?
 ---@field global boolean?
----@field action string?
+---@field action fun(session: tmux-toggle-popup.Session, name: string): string
 
 ---@class tmux-toggle-popup.SessionIdentifier
 ---@field name string?
@@ -132,7 +132,7 @@ function M.open(opts)
     end
     local f = " " .. table.concat(flags, " ")
 
-    table.insert(opts.on_init, ("bind%s %s %s -s %s"):format(f, opts.toggle.key, opts.toggle.action or "detach", session))
+    table.insert(opts.on_init, ("bind%s %s %s"):format(f, opts.toggle.key, opts.toggle.action(opts, session)))
     table.insert(opts.after_close, ("unbind%s %s"):format(f, opts.toggle.key))
   end
 
@@ -284,7 +284,7 @@ function M.kill_all()
 end
 
 ---@param opts tmux-toggle-popup.SessionIdentifier
----@return string?
+---@return string
 function M.format(opts)
   log.debug("Trying to interpolate popup name: %s", opts.id_format)
 
@@ -314,9 +314,7 @@ function M.format(opts)
 
   local session = result.stdout:gsub("[\n]", "")
   if result.code > 0 or session == "" then
-    log.debug("Can not get session name for popup: %s: %s", opts.name, opts.id_format)
-
-    return
+    error(("Can not get session name for popup: %s: %s"):format(opts.name, opts.id_format))
   end
 
   -- dont know why display -p fixes this formatting errors, maybe figure that out later

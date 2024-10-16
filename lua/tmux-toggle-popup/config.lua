@@ -47,6 +47,11 @@ local defaults = {
   before_open = {},
   after_close = {},
   kill = true,
+  toggle = {
+    action = function(_, name)
+      return "detach -s " .. name
+    end,
+  },
 }
 
 ---@type tmux-toggle-popup.Config
