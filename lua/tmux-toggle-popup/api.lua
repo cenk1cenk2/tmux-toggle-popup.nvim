@@ -40,7 +40,7 @@ local AUGROUP_TO_KILL = "tmux-toggle-popup.to-kill"
 ---@class tmux-toggle-popup.ToggleKeymap
 ---@field key string?
 ---@field global boolean?
----@field action fun(session: tmux-toggle-popup.Session, name: string): string
+---@field action (fun(session: tmux-toggle-popup.Session, name: string): string)?
 
 ---@class tmux-toggle-popup.SessionIdentifier
 ---@field name string?
