@@ -75,6 +75,11 @@ Setup function will set the defaults for your any other API calls like the `open
 ---@field after_close string[]? --- Tmux commands that are going to be run on the main session the popup is closed.
 ---@field toggle tmux-toggle-popup.ToggleKeymap?
 ---@field kill boolean? --- Kill the session, on `VimLeavePre` event.
+
+---@class tmux-toggle-popup.ConfigUiSize
+---@field width? number | (fun(columns: number): number?) --- calculate the width of the popup from the terminal columns
+---@field height? number | (fun(lines: number): number?) --- calculate the height of the popup from the terminal lines
+
 ---@field flags tmux-toggle-popup.Flags? --- Flags for passing in the tmux popup command.
 
 -- The flags does reside in the .flags table.
@@ -91,13 +96,11 @@ Setup function will set the defaults for your any other API calls like the `open
 ---@field target_pane string? --- target-pane
 ---@field title ((fun (session: tmux-toggle-popup.Session, name: string): string | nil) | string)? --- -T is a format for the popup title (see “FORMATS”).
 
+-- The keymap configuration does reside in the .toggle table.
+
 ---@class tmux-toggle-popup.ToggleKeymap
 ---@field key string
 ---@field global boolean?
-
----@class tmux-toggle-popup.ConfigUiSize
----@field width? number | (fun(columns: number): number?) --- calculate the width of the popup from the terminal columns
----@field height? number | (fun(lines: number): number?) --- calculate the height of the popup from the terminal lines
 
 ```
 
