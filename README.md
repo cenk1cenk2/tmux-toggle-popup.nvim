@@ -6,7 +6,7 @@ All credits go to the [@loichyan](https://github.com/loichyan) for building this
 
 ## Disclaimer
 
-Currently this plugin is in the dogfooding stage and evaluated for feasbility.
+Currently this plugin is in the dogfooding stage and evaluated for feasibility.
 
 ## Features
 
@@ -211,3 +211,15 @@ You can get the session name for a given setup.
 ```lua
 require("tmux-toggle-popup").format({ name = "lazygit" })
 ```
+
+### Fallback to Another Terminal
+
+In my case, when I am inside `tmux` which is `99.999999%` of the time, I can use this plugin. However... There is also times that I am sometimes outside of an `tmux` session.
+
+So I do want to still be able to fallback on a terminal provider, which I have been using for years, which is the beautiful implementation by [akinsho](https://github.com/akinsho) [akinsho/toggleterm.nvim](https://github.com/akinsho/toggleterm.nvim).
+
+If you are like me that does not like to leave their comfort zone, when it comes to the muscle memory, you can use `vim.env["TMUX"]` environment variable to check if you are inside a `tmux` session and decide upon that.
+
+You can see the example configuration which I have for this plugin [here](https://github.com/cenk1cenk2/nvim/blob/rolling/lua/ck/plugins/tmux-toggle-popup-nvim.lua) and for the fallback [here](https://github.com/cenk1cenk2/nvim/blob/rolling/lua/ck/plugins/toggleterm-nvim.lua). The main idea is to set the keymaps depending on being inside a session or not.
+
+You can also use the `cond` field if you are using `lazy.nvim` to load a plugin conditionally.

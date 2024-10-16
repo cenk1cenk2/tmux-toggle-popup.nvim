@@ -6,6 +6,7 @@ local M = {
   kill = require("tmux-toggle-popup.api").kill,
   kill_all = require("tmux-toggle-popup.api").kill_all,
   format = require("tmux-toggle-popup.api").format,
+  is_tmux = require("tmux-toggle-popup.utils").is_tmux,
 }
 
 return M
