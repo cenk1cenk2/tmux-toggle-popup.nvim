@@ -26,8 +26,8 @@ An example for this would be in your `tmux.conf` file is as follows.
 set -g @plugin "loichyan/tmux-toggle-popup"
 
 # I am binding my leader C-a to open up a popup window in the tmux configuration.
-# This same keybinding from tmux will be also used to close up any open popup window with `--single-instance` flag.
-bind C-a run "#{@popup-toggle} --single-instance --name scratch -Ed'#{pane_current_path}' -w98% -h98%"
+# This same keybinding from tmux will be also used to close up any open popup window with `--force` flag.
+bind C-a run "#{@popup-toggle} --force --name scratch -Ed'#{pane_current_path}' -w98% -h98%"
 
 # install tmux plugins
 if "test ! -d ~/.config/tmux/plugins/tpm" \
