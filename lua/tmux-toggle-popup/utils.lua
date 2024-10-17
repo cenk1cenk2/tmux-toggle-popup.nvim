@@ -74,9 +74,8 @@ function M.tmux_serialize(commands, session, name)
     commands[i] = M.self_or_result(command, session, name)
   end
 
-  --- TODO: remove gsub when feat/improve-hook-syntax is merged
   ---@diagnostic disable-next-line: param-type-mismatch
-  return "'" .. table.concat(commands, "; "):gsub(";", "\\;") .. "'"
+  return "'" .. table.concat(commands, "; ") .. "'"
 end
 
 return M
