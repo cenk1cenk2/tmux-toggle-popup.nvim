@@ -125,6 +125,7 @@ function M.open(opts)
     opts.env["NVIM"] = socket
   end
 
+  --- TODO: reevaluate this flow after https://github.com/loichyan/tmux-toggle-popup/pull/9
   if opts.toggle and opts.toggle.key then
     local flags = {}
     if opts.toggle.global then
