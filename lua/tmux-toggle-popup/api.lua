@@ -17,7 +17,7 @@ local AUGROUP_TO_KILL = "tmux-toggle-popup.to-kill"
 ---@class tmux-toggle-popup.Session: tmux-toggle-popup.ConfigUiSize, tmux-toggle-popup.SessionIdentifier
 ---@field socket_name string?
 ---@field command string[]?
----@field env table<string, string>?
+---@field env table<string, ((fun (): string) | string)>?
 ---@field on_init ((fun (session: tmux-toggle-popup.Session, name?: string): string) | string)[]?
 ---@field before_open ((fun (session: tmux-toggle-popup.Session, name?: string): string) | string)[]?
 ---@field after_close ((fun (session: tmux-toggle-popup.Session, name?: string): string) | string)[]?
@@ -137,22 +137,22 @@ function M.open(opts)
   end
 
   for key, value in pairs(opts.env) do
-    vim.list_extend(args, { "-e", key .. [[=']] .. value .. [[']] })
+    vim.list_extend(args, { "-e", key .. [[=']] .. utils.self_or_result(value) .. [[']] })
   end
 
   if opts.on_init and #opts.on_init > 0 then
     table.insert(args, "--on-init")
-    table.insert(args, utils.tmux_escape(opts.on_init, opts, session))
+    table.insert(args, utils.tmux_serialize(opts.on_init, opts, session))
   end
 
   if opts.before_open and #opts.before_open > 0 then
     table.insert(args, "--before-open")
-    table.insert(args, utils.tmux_escape(opts.before_open, opts, session))
+    table.insert(args, utils.tmux_serialize(opts.before_open, opts, session))
   end
 
   if opts.after_close and #opts.after_close > 0 then
     table.insert(args, "--after-close")
-    table.insert(args, utils.tmux_escape(opts.after_close, opts, session))
+    table.insert(args, utils.tmux_serialize(opts.after_close, opts, session))
   end
 
   vim.list_extend(args, M.parse_flags(opts))
@@ -286,6 +286,10 @@ end
 ---@param opts tmux-toggle-popup.SessionIdentifier
 ---@return string
 function M.format(opts)
+  local c = config.read()
+  ---@type tmux-toggle-popup.Session
+  opts = vim.tbl_deep_extend("force", {}, c, opts or {})
+
   log.debug("Trying to interpolate popup name: %s", opts.id_format)
 
   local result = vim

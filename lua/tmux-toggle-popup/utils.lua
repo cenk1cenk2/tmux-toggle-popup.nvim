@@ -58,18 +58,24 @@ function M.escape_id_format(str)
   return str
 end
 
+---
+---@param data (fun(...: any): any) | any
+---@param ... any[]
+---@return any
+function M.self_or_result(data, ...)
+  return type(data) == "function" and data(...) or data
+end
+
 ---@param commands ((fun (session: tmux-toggle-popup.Session, name?: string): string) | string[])?
 ---@return string
-function M.tmux_escape(commands, session, name)
+function M.tmux_serialize(commands, session, name)
   ---@diagnostic disable-next-line: param-type-mismatch
-  for _, command in pairs(commands) do
-    if type(commands) == "function" then
-      command = command(session, name)
-    end
+  for i, command in pairs(commands) do
+    commands[i] = M.self_or_result(command, session, name)
   end
 
   ---@diagnostic disable-next-line: param-type-mismatch
-  return "'" .. table.concat(commands, "; "):gsub(";", "\\;") .. "'"
+  return "'" .. table.concat(commands, "; ") .. "'"
 end
 
 return M
