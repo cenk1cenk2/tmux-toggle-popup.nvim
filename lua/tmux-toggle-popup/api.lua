@@ -108,7 +108,7 @@ function M.open(opts)
   local session = M.format(opts)
 
   local args = {
-    "--toggle",
+    "--force",
     "--name",
     opts.name,
     "--socket-name",
