@@ -26,8 +26,8 @@ An example for this would be in your `tmux.conf` file is as follows.
 set -g @plugin "loichyan/tmux-toggle-popup"
 
 # I am binding my leader C-a to open up a popup window in the tmux configuration.
-# This same keybinding from tmux will be also used to close up any open popup window with `--single-instance` flag.
-bind C-a run "#{@popup-toggle} --single-instance --name scratch -Ed'#{pane_current_path}' -w98% -h98%"
+# This same keybinding from tmux will be also used to close up any open popup window with `--toggle-mode` flag.
+bind C-a run "#{@popup-toggle} --toggle-key 'C-a' --toggle-mode 'force-close' --name scratch -Ed'#{pane_current_path}' -w95% -h95%"
 
 # install tmux plugins
 if "test ! -d ~/.config/tmux/plugins/tpm" \
@@ -139,14 +139,16 @@ So imagine that you have mapped this popup to `<F1>` on your `neovim` instance a
 
 You can get around this issue by setting a toggle on the `tmux` side through this plugin, this will temporarily add a keybinding to your designated one. Whenever you open a popup, this keybinding will be added to the `tmux` configuration and on close a callback will clear it up. So try not to overwrite your existing bindings. This solution is currently good enough but I am open to any suggestion on a better flow.
 
+Please refer to the section [here](https://github.com/loichyan/tmux-toggle-popup?tab=readme-ov-file#popup-toggle) on the original plugin.
+
 ```lua
 --- per command
 require("tmux-toggle-popup").open({
   toggle = {
     -- this will be a tmux keybinding so it should be in the format that is acceptable to tmux
-    key = "F1",
-    -- this value is for tmux as well, you can add `-n` flag to make this keybinding global
-    global = true,
+    key = "-n F1",
+    -- this value is set for the toggle script on the original plugin
+    mode = "force-close"
   },
 })
 
@@ -154,9 +156,9 @@ require("tmux-toggle-popup").open({
 require("tmux-toggle-popup").setup({
   toggle = {
     -- this will be a tmux keybinding so it should be in the format that is acceptable to tmux
-    key = "F1",
-    -- this value is for tmux as well, you can add `-n` flag to make this keybinding global
-    global = true,
+    key = "-n F1",
+    -- this value is set for the toggle script on the original plugin
+    mode = "force-close"
   },
 })
 ```

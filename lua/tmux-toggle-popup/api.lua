@@ -39,8 +39,7 @@ local AUGROUP_TO_KILL = "tmux-toggle-popup.to-kill"
 
 ---@class tmux-toggle-popup.ToggleKeymap
 ---@field key string?
----@field global boolean?
----@field action (fun(session: tmux-toggle-popup.Session, name: string): string)?
+---@field mode ("switch" | "force-close" | "force-open")?
 
 ---@class tmux-toggle-popup.SessionIdentifier
 ---@field name string?
@@ -108,7 +107,6 @@ function M.open(opts)
   local session = M.format(opts)
 
   local args = {
-    "--toggle",
     "--name",
     opts.name,
     "--socket-name",
@@ -125,16 +123,12 @@ function M.open(opts)
     opts.env["NVIM"] = socket
   end
 
-  --- TODO: reevaluate this flow after https://github.com/loichyan/tmux-toggle-popup/pull/9
   if opts.toggle and opts.toggle.key then
-    local flags = {}
-    if opts.toggle.global then
-      table.insert(flags, "-n")
-    end
-    local f = " " .. table.concat(flags, " ")
+    vim.list_extend(args, { "--toggle-key", utils.escape(opts.toggle.key) })
 
-    table.insert(opts.on_init, ("bind%s %s %s"):format(f, opts.toggle.key, opts.toggle.action(opts, session)))
-    table.insert(opts.after_close, ("unbind%s %s"):format(f, opts.toggle.key))
+    if opts.toggle.mode then
+      vim.list_extend(args, { "--toggle-mode", opts.toggle.mode })
+    end
   end
 
   for key, value in pairs(opts.env) do
@@ -296,28 +290,13 @@ function M.format(opts)
   local result = vim
     .system({
       "tmux",
-      "set",
-      "@popup_name",
-      opts.name,
-      ";",
       "display",
       "-p",
       opts.id_format,
     })
     :wait(1000)
 
-  Job:new({
-    command = "tmux",
-    args = {
-      "set",
-      "-u",
-      "@popup-name",
-      opts.name,
-    },
-    detached = true,
-  }):start()
-
-  local session = result.stdout:gsub("[\n]", "")
+  local session = result.stdout:gsub("[\n]", ""):gsub("{popup_name}", opts.name)
   if result.code > 0 or session == "" then
     error(("Can not get session name for popup: %s: %s"):format(opts.name, opts.id_format))
   end

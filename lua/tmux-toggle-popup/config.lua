@@ -23,7 +23,7 @@ local defaults = {
       return session.name
     end,
   },
-  id_format = "#{session_name}/nvim/#{pane_current_path}/#{@popup_name}",
+  id_format = "#{session_name}/nvim/#{pane_current_path}/{popup_name}",
   command = {},
   env = {},
   width = function(columns)
