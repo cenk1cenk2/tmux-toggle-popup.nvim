@@ -132,9 +132,10 @@ function M.open(opts)
   end
 
   for key, value in pairs(opts.env) do
+    ---@type string?
     local v = utils.self_or_result(value)
 
-    if v == nil then
+    if vim.tbl_contains({ "function", "nil" }, type(v)) then
       v = ""
     end
 
