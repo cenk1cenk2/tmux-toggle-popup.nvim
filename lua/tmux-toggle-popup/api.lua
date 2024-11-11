@@ -133,9 +133,12 @@ function M.open(opts)
 
   for key, value in pairs(opts.env) do
     local v = utils.self_or_result(value)
-    if v ~= nil and v ~= "" then
-      vim.list_extend(args, { "-e", key .. [[=']] .. v .. [[']] })
+
+    if v == nil then
+      v = ""
     end
+
+    vim.list_extend(args, { "-e", key .. [[=']] .. v .. [[']] })
   end
 
   if opts.on_init and #opts.on_init > 0 then
