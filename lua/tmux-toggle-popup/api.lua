@@ -132,7 +132,13 @@ function M.open(opts)
   end
 
   for key, value in pairs(opts.env) do
-    vim.list_extend(args, { "-e", key .. [[=']] .. utils.self_or_result(value) .. [[']] })
+    local v = utils.self_or_result(value)
+    vim.validate({
+      key = { key, "string" },
+      value = { v, "string" },
+    })
+
+    vim.list_extend(args, { "-e", key .. [[=']] .. v .. [[']] })
   end
 
   if opts.on_init and #opts.on_init > 0 then
