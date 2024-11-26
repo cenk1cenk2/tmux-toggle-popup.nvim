@@ -135,7 +135,7 @@ function M.open(opts)
     ---@type string?
     local v = utils.self_or_result(value)
 
-    if vim.tbl_contains({ "function", "nil" }, type(v)) then
+    if v == nil then
       v = ""
     end
 
