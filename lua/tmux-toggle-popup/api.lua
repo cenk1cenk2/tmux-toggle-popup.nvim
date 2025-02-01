@@ -117,10 +117,13 @@ function M.open(opts)
     ("-h%s%%"):format(ui.height),
   }
 
-  local sockets = vim.fn.serverlist()
-  if sockets and #sockets > 0 then
-    local socket = sockets[1]
-    opts.env["NVIM"] = socket
+  opts.env["NVIM"] = function()
+    local sockets = vim.fn.serverlist()
+    if sockets and #sockets > 0 then
+      return sockets[1]
+    end
+
+    return ""
   end
 
   if opts.toggle and opts.toggle.key then
