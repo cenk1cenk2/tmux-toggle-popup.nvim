@@ -59,7 +59,7 @@ function M.validate_session_options(opts)
     flags = { opts.flags, "table", true },
     id_format = { opts.id_format, "string", true },
     command = { opts.command, "table", true },
-    env = { opts.env, "table", true },
+    env = { opts.env, { "function", "table" }, true },
     on_init = { opts.on_init, "table", true },
     before_open = { opts.before_open, "table", true },
     after_close = { opts.after_close, "table", true },
@@ -134,7 +134,7 @@ function M.open(opts)
     end
   end
 
-  for key, value in pairs(opts.env) do
+  for key, value in pairs(utils.self_or_result(opts.env)) do
     ---@type string?
     local v = utils.self_or_result(value)
 
