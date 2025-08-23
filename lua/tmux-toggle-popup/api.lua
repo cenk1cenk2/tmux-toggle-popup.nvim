@@ -17,7 +17,7 @@ local AUGROUP_TO_KILL = "tmux-toggle-popup.to-kill"
 ---@class tmux-toggle-popup.Session: tmux-toggle-popup.ConfigUiSize, tmux-toggle-popup.SessionIdentifier
 ---@field socket_name string?
 ---@field command string[]?
----@field env fun()table<string, ((fun (): string) | string)>? | table<string, ((fun (): string) | string)>?
+---@field env fun(): table<string, ((fun (): string) | string)>? | table<string, ((fun (): string) | string)>?
 ---@field on_init ((fun (session: tmux-toggle-popup.Session, name?: string): string) | string)[]?
 ---@field before_open ((fun (session: tmux-toggle-popup.Session, name?: string): string) | string)[]?
 ---@field after_close ((fun (session: tmux-toggle-popup.Session, name?: string): string) | string)[]?
@@ -117,15 +117,6 @@ function M.open(opts)
     ("-h%s%%"):format(ui.height),
   }
 
-  opts.env["NVIM"] = function()
-    local sockets = vim.fn.serverlist()
-    if sockets and #sockets > 0 then
-      return sockets[1]
-    end
-
-    return ""
-  end
-
   if opts.toggle and opts.toggle.key then
     vim.list_extend(args, { "--toggle-key", utils.escape(opts.toggle.key) })
 
@@ -143,6 +134,11 @@ function M.open(opts)
     end
 
     vim.list_extend(args, { "-e", key .. [[=']] .. v .. [[']] })
+  end
+
+  local sockets = vim.fn.serverlist()
+  if sockets and #sockets > 0 then
+    vim.list_extend(args, { "-e", "NVIM=" .. sockets[1] })
   end
 
   if opts.on_init and #opts.on_init > 0 then

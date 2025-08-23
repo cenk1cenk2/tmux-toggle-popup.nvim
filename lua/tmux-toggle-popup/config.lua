@@ -25,9 +25,7 @@ local defaults = {
   },
   id_format = "#{session_name}/nvim/#{pane_current_path}/{popup_name}",
   command = {},
-  env = function()
-    return vim.fn.environ()
-  end,
+  env = {},
   width = function(columns)
     if columns < 180 then
       return columns * 0.975
