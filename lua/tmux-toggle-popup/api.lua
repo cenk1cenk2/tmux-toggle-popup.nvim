@@ -17,7 +17,7 @@ local AUGROUP_TO_KILL = "tmux-toggle-popup.to-kill"
 ---@class tmux-toggle-popup.Session: tmux-toggle-popup.ConfigUiSize, tmux-toggle-popup.SessionIdentifier
 ---@field socket_name string?
 ---@field command string[]?
----@field env table<string, ((fun (): string) | string)>?
+---@field env fun()table<string, ((fun (): string) | string)>? | table<string, ((fun (): string) | string)>?
 ---@field on_init ((fun (session: tmux-toggle-popup.Session, name?: string): string) | string)[]?
 ---@field before_open ((fun (session: tmux-toggle-popup.Session, name?: string): string) | string)[]?
 ---@field after_close ((fun (session: tmux-toggle-popup.Session, name?: string): string) | string)[]?
