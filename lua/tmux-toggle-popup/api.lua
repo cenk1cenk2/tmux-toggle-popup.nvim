@@ -174,7 +174,7 @@ function M.open(opts)
     detached = true,
     on_exit = function(j, code)
       if code > 0 then
-        log.error("Can not spawn tmux command: %s -> %s", tmux_command, j:stderr_result())
+        log.error("Can not spawn tmux command: %s ->\n%s\n%s", tmux_command, j:result(), j:stderr_result())
 
         return
       end
