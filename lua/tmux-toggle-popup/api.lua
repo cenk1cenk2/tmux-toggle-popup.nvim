@@ -139,7 +139,7 @@ function M.open(opts)
     env = vim.tbl_extend("force", env, utils.self_or_result(c.env))
   end
 
-  env = vim.tbl_extend("force", env, utils.self_or_result(utils.self_or_result(opts.env)))
+  env = vim.tbl_extend("force", env, utils.self_or_result(opts.env))
 
   for key, value in pairs(env) do
     ---@type string?
