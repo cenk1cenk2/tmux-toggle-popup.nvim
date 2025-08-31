@@ -162,17 +162,19 @@ function M.open(opts)
     vim.list_extend(args, opts.command)
   end
 
+  local tmux_command = table.concat(vim.list_extend({ "#{@popup-toggle}" }, args), " ")
+
   log.debug("Trying to spawn a new tmux command with: %s", args)
   Job:new({
     command = "tmux",
     args = {
       "run",
-      table.concat(vim.list_extend({ "#{@popup-toggle}" }, args), " "),
+      tmux_command,
     },
     detached = true,
     on_exit = function(j, code)
       if code > 0 then
-        log.error("Can not spawn tmux command: %s", j:stderr_result())
+        log.error("Can not spawn tmux command: %s -> %s", tmux_command, j:stderr_result())
 
         return
       end
