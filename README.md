@@ -69,12 +69,15 @@ Setup function will set the defaults for your any other API calls like the `open
 ---@class tmux-toggle-popup.Session: tmux-toggle-popup.ConfigUiSize, tmux-toggle-popup.SessionIdentifier
 ---@field socket_name string? --- Socket name for the TMUX session, you can give this if you want to isolate your popup to a specific session.
 ---@field command string[]? --- The starting command for the popup, will use the default tmux command if not given.
----@field env table<string, string>? --- Environment variables that are going to be passed to the popup.
----@field on_init string[]? --- Tmux commands that are going to be run insdie the popup after being created.
----@field before_open string[]? --- Tmux commands that are going to be run on the main session the popup is opened.
----@field after_close string[]? --- Tmux commands that are going to be run on the main session the popup is closed.
----@field toggle tmux-toggle-popup.ToggleKeymap?
----@field kill boolean? --- Kill the session, on `VimLeavePre` event.
+---@field inherit_env boolean? --- Inherit the global environment values for your session.
+---@field inherit_vim_env boolean? --- Inherit the vim.env values for your session.
+---@field env fun(): table<string, ((fun (): string) | string)>? | table<string, ((fun (): string) | string)>? --- Environment variables that are going to be passed to the popup.
+---@field on_init ((fun (session: tmux-toggle-popup.Session, name?: string): string) | string)[]? --- Tmux commands that are going to be run inside the popup after being created.
+---@field before_open ((fun (session: tmux-toggle-popup.Session, name?: string): string) | string)[]? --- Tmux commands that are going to be run on the main session the popup is opened.
+---@field after_close ((fun (session: tmux-toggle-popup.Session, name?: string): string) | string)[]? --- Tmux commands that are going to be run on the main session the popup is closed.
+---@field toggle tmux-toggle-popup.ToggleKeymap? --- Keymap for toggle operations.
+---@field kill boolean?  --- Kill the session, on `VimLeavePre` event.
+---@field flags tmux-toggle-popup.Flags? --- Additional flags for the session.
 
 ---@class tmux-toggle-popup.ConfigUiSize
 ---@field width? number | (fun(columns: number): number?) --- calculate the width of the popup from the terminal columns
@@ -102,7 +105,6 @@ Setup function will set the defaults for your any other API calls like the `open
 ---@field key string? --- This is a tmux keybinding so it should be in the format that is acceptable to tmux.
 ---@field global boolean? --- Global passes -n flag to the tmux keybinding.
 ---@field action (fun(session: tmux-toggle-popup.Session, name: string): string)? --- Action to perform default is to detach from the session
-
 ```
 
 #### Plugin Options
@@ -148,7 +150,7 @@ require("tmux-toggle-popup").open({
     -- this will be a tmux keybinding so it should be in the format that is acceptable to tmux
     key = "-n F1",
     -- this value is set for the toggle script on the original plugin
-    mode = "force-close"
+    mode = "force-close",
   },
 })
 
@@ -158,7 +160,7 @@ require("tmux-toggle-popup").setup({
     -- this will be a tmux keybinding so it should be in the format that is acceptable to tmux
     key = "-n F1",
     -- this value is set for the toggle script on the original plugin
-    mode = "force-close"
+    mode = "force-close",
   },
 })
 ```
@@ -226,3 +228,27 @@ If you are like me that does not like to leave their comfort zone, when it comes
 You can see the example configuration which I have for this plugin [here](https://github.com/cenk1cenk2/nvim/blob/rolling/lua/ck/plugins/tmux-toggle-popup-nvim.lua) and for the fallback [here](https://github.com/cenk1cenk2/nvim/blob/rolling/lua/ck/plugins/toggleterm-nvim.lua). The main idea is to set the keymaps depending on being inside a session or not.
 
 You can also use the `cond` field if you are using `lazy.nvim` to load a plugin conditionally.
+
+### Environment Variables for the Session
+
+#### Pass `vim.env` Environment Variables to the Session
+
+You can pass the `vim.env` environment variables to the session through `inherit_vim_env` property. This property is a global setting in the setup function as well as per session.
+
+**This configuration setting is in preview mode currently, does not work fully yet.**
+
+```lua
+require("tmux-toggle-popup").open({ name = "lazygit", command = { "lazygit" }, inherit_vim_env = true })
+```
+
+#### Pass Global Configuration of Environment Variables to the Session
+
+You can pass the global environment variables to the session through `inherit_env` property. This property is a global setting in the setup function as well as per session.
+
+```lua
+-- setup with the global environment variables
+require("tmux-toggle-popup").setup({ env = { TEST = "1" } })
+
+--
+require("tmux-toggle-popup").open({ name = "lazygit", command = { "lazygit" }, inherit_env = true })
+```

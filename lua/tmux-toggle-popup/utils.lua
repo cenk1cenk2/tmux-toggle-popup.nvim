@@ -75,7 +75,7 @@ function M.tmux_serialize(commands, session, name)
   end
 
   ---@diagnostic disable-next-line: param-type-mismatch
-  return M.escape(table.concat(commands, "; "))
+  return table.concat(commands, "; ")
 end
 
 function M.escape(data)

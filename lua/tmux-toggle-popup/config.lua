@@ -25,6 +25,8 @@ local defaults = {
   },
   id_format = "#{session_name}/nvim/#{pane_current_path}/{popup_name}",
   command = {},
+  inherit_env = false,
+  inherit_vim_env = false,
   env = {},
   width = function(columns)
     if columns < 180 then

@@ -4,6 +4,8 @@ local M = {
     autocmd_to_kill = {},
     ---@type table<string, tmux-toggle-popup.SessionIdentifier>
     sessions = {},
+    ---@type string?
+    toggle_command = nil,
   },
 }
 
@@ -15,15 +17,17 @@ local Job = require("plenary.job")
 local AUGROUP_TO_KILL = "tmux-toggle-popup.to-kill"
 
 ---@class tmux-toggle-popup.Session: tmux-toggle-popup.ConfigUiSize, tmux-toggle-popup.SessionIdentifier
----@field socket_name string?
----@field command string[]?
----@field env fun(): table<string, ((fun (): string) | string)>? | table<string, ((fun (): string) | string)>?
----@field on_init ((fun (session: tmux-toggle-popup.Session, name?: string): string) | string)[]?
----@field before_open ((fun (session: tmux-toggle-popup.Session, name?: string): string) | string)[]?
----@field after_close ((fun (session: tmux-toggle-popup.Session, name?: string): string) | string)[]?
----@field toggle tmux-toggle-popup.ToggleKeymap?
----@field kill boolean?
----@field flags tmux-toggle-popup.Flags?
+---@field socket_name string? --- Socket name for the TMUX session, you can give this if you want to isolate your popup to a specific session.
+---@field command string[]? --- The starting command for the popup, will use the default tmux command if not given.
+---@field inherit_env boolean? --- Inherit the global environment values for your session.
+---@field inherit_vim_env boolean? --- Inherit the vim.env values for your session.
+---@field env fun(): table<string, ((fun (): string) | string)>? | table<string, ((fun (): string) | string)>? --- Environment variables that are going to be passed to the popup.
+---@field on_init ((fun (session: tmux-toggle-popup.Session, name?: string): string) | string)[]? --- Tmux commands that are going to be run inside the popup after being created.
+---@field before_open ((fun (session: tmux-toggle-popup.Session, name?: string): string) | string)[]? --- Tmux commands that are going to be run on the main session the popup is opened.
+---@field after_close ((fun (session: tmux-toggle-popup.Session, name?: string): string) | string)[]? --- Tmux commands that are going to be run on the main session the popup is closed.
+---@field toggle tmux-toggle-popup.ToggleKeymap? --- Keymap for toggle operations.
+---@field kill boolean?  --- Kill the session, on `VimLeavePre` event.
+---@field flags tmux-toggle-popup.Flags? --- Additional flags for the session.
 
 ---@class tmux-toggle-popup.Flags
 ---@field no_border boolean? --- -B does not surround the popup by a border.
@@ -112,20 +116,32 @@ function M.open(opts)
     "--socket-name",
     opts.socket_name,
     "--id-format",
-    utils.escape_id_format(opts.id_format),
+    session,
     ("-w%s%%"):format(ui.width),
     ("-h%s%%"):format(ui.height),
   }
 
   if opts.toggle and opts.toggle.key then
-    vim.list_extend(args, { "--toggle-key", utils.escape(opts.toggle.key) })
+    vim.list_extend(args, { "--toggle-key", opts.toggle.key })
 
     if opts.toggle.mode then
       vim.list_extend(args, { "--toggle-mode", opts.toggle.mode })
     end
   end
 
-  for key, value in pairs(utils.self_or_result(opts.env)) do
+  local env = {}
+
+  if opts.inherit_vim_env then
+    env = vim.tbl_extend("force", env, vim.fn.environ())
+  end
+
+  if opts.inherit_env then
+    env = vim.tbl_extend("force", env, utils.self_or_result(c.env))
+  end
+
+  env = vim.tbl_extend("force", env, utils.self_or_result(utils.self_or_result(opts.env)))
+
+  for key, value in pairs(env) do
     ---@type string?
     local v = utils.self_or_result(value)
 
@@ -133,7 +149,7 @@ function M.open(opts)
       v = ""
     end
 
-    vim.list_extend(args, { "-e", key .. [[=']] .. v .. [[']] })
+    vim.list_extend(args, { "-e", key .. [[=]] .. v })
   end
 
   local sockets = vim.fn.serverlist()
@@ -162,19 +178,16 @@ function M.open(opts)
     vim.list_extend(args, opts.command)
   end
 
-  local tmux_command = table.concat(vim.list_extend({ "#{@popup-toggle}" }, args), " ")
+  M.cache_tmux_toggle_command()
 
-  log.debug("Trying to spawn a new tmux command with: %s", args)
+  log.debug("Trying to spawn a new tmux command with: %s with arguments %s", M._.toggle_command, args)
   Job:new({
-    command = "tmux",
-    args = {
-      "run",
-      tmux_command,
-    },
+    command = M._.toggle_command,
+    args = args,
     detached = true,
     on_exit = function(j, code)
       if code > 0 then
-        log.error("Can not spawn tmux command: %s -> stdout: %s stderr: %s", tmux_command, j:result(), j:stderr_result())
+        log.error("Can not spawn tmux command: %d -> %s", code, j:stderr_result())
 
         return
       end
@@ -182,12 +195,6 @@ function M.open(opts)
       log.debug("Finished tmux command: %s", j:result())
     end,
   }):start()
-
-  if not session then
-    log.warn("Can not get session name for popup: %s", opts.id_format)
-
-    return
-  end
 
   M._.sessions[session] = opts
 
@@ -200,6 +207,23 @@ function M.open(opts)
         M.kill_session(session, { detached = true }):start()
       end,
     })
+  end
+end
+
+function M.cache_tmux_toggle_command()
+  if not M._.toggle_command then
+    local stdout, _ = Job:new({
+      command = "tmux",
+      args = { "display", "-p", "#{@popup-toggle}" },
+    }):sync(1000)
+
+    if not stdout or #stdout == 0 or #stdout > 1 then
+      error("Can not cache toggle script address.")
+    end
+
+    M._.toggle_command = stdout[1]
+
+    log.debug("Tmux toggle script: %s", M._.toggle_command)
   end
 end
 
@@ -295,17 +319,21 @@ function M.format(opts)
 
   log.debug("Trying to interpolate popup name: %s", opts.id_format)
 
-  local result = vim
-    .system({
-      "tmux",
+  local stdout, code = Job:new({
+    command = "tmux",
+    args = {
       "display",
       "-p",
       opts.id_format,
-    })
-    :wait(1000)
+    },
+  }):sync(1000)
 
-  local session = result.stdout:gsub("[\n]", ""):gsub("{popup_name}", opts.name)
-  if result.code > 0 or session == "" then
+  if not stdout or #stdout == 0 then
+    error(("Can not interpolate popup name: %s"):format(opts.id_format))
+  end
+
+  local session = table.concat(stdout, " "):gsub("[\n]", ""):gsub("{popup_name}", opts.name)
+  if code > 0 or session == "" then
     error(("Can not get session name for popup: %s: %s"):format(opts.name, opts.id_format))
   end
 
