@@ -1,0 +1,28 @@
+[selene]
+base = "lua51"
+name = "vim"
+
+[vim]
+any = true
+
+[jit]
+any = true
+
+[assert]
+any = true
+
+[describe]
+any = true
+
+[it]
+any = true
+
+[nvim]
+any = true
+
+[package]
+any = true
+
+[_G]
+property = true
+writable = "new-fields"

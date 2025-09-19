@@ -91,6 +91,7 @@ function M.validate_session_flags(opts)
 end
 
 ---@param opts? tmux-toggle-popup.Session
+---@return tmux-toggle-popup.Session
 function M.open(opts)
   local c = config.read()
   ---@type tmux-toggle-popup.Session
@@ -208,6 +209,8 @@ function M.open(opts)
       end,
     })
   end
+
+  return opts
 end
 
 function M.cache_tmux_toggle_command()
@@ -229,6 +232,7 @@ end
 
 --- Aborts the kill process on the matching popup.
 ---@param opts? tmux-toggle-popup.SessionIdentifier
+---@returns tmux-toggle-popup.Session
 function M.save(opts)
   local c = config.read()
   ---@type tmux-toggle-popup.Session
@@ -255,6 +259,8 @@ function M.save(opts)
   M._.autocmd_to_kill[session] = nil
 
   log.info("Saved tmux session: %s", session)
+
+  return opts
 end
 
 --- Aborts all the kill autocommands.
@@ -270,7 +276,8 @@ function M.save_all()
   M._.autocmd_to_kill = {}
 end
 
---- @param opts? tmux-toggle-popup.SessionIdentifier
+---@param opts? tmux-toggle-popup.SessionIdentifier
+---@returns tmux-toggle-popup.Session
 function M.kill(opts)
   local c = config.read()
   ---@type tmux-toggle-popup.Session
@@ -292,6 +299,8 @@ function M.kill(opts)
   M._.sessions[session] = nil
 
   log.info("Killed tmux session: %s -> %s", opts.name, session)
+
+  return opts
 end
 
 --- Kills all managed sessions.
@@ -420,6 +429,38 @@ function M.kill_session(session, opts)
       session,
     },
   }))
+end
+
+---Checks if a tmux session exists.
+---@param opts? tmux-toggle-popup.SessionIdentifier
+---@return boolean
+function M.has_session(opts)
+  local c = config.read()
+  ---@type tmux-toggle-popup.Session
+  opts = vim.tbl_deep_extend("force", {}, c, opts or {})
+
+  M.validate_session_identifier(opts)
+
+  local session = M.format(opts)
+
+  if not session then
+    log.warn("Can not get session name for popup: %s", opts.id_format)
+
+    return false
+  end
+
+  local job = Job:new({
+    command = "tmux",
+    args = {
+      "has-session",
+      "-t",
+      session,
+    },
+  })
+
+  job:sync(1000)
+
+  return job.code == 0
 end
 
 return M
