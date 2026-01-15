@@ -153,10 +153,7 @@ function M.open(opts)
     vim.list_extend(args, { "-e", key .. [[=]] .. v })
   end
 
-  local sockets = vim.fn.serverlist()
-  if sockets and #sockets > 0 then
-    vim.list_extend(args, { "-e", "NVIM=" .. sockets[1] })
-  end
+  vim.list_extend(args, { "-e", "NVIM=" .. vim.v.servername })
 
   if opts.on_init and #opts.on_init > 0 then
     table.insert(args, "--on-init")
