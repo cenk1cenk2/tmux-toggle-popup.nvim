@@ -6,6 +6,8 @@ local M = {
     sessions = {},
     ---@type string?
     toggle_command = nil,
+    ---@type tmux-toggle-popup.Backend?
+    backend = nil,
   },
 }
 
@@ -15,6 +17,8 @@ local utils = require("tmux-toggle-popup.utils")
 local Job = require("plenary.job")
 
 local AUGROUP_TO_KILL = "tmux-toggle-popup.to-kill"
+
+---@alias tmux-toggle-popup.Backend "legacy-popup" | "floating-pane"
 
 ---@class tmux-toggle-popup.Session: tmux-toggle-popup.ConfigUiSize, tmux-toggle-popup.SessionIdentifier
 ---@field socket_name string? --- Socket name for the TMUX session, you can give this if you want to isolate your popup to a specific session.
@@ -30,15 +34,15 @@ local AUGROUP_TO_KILL = "tmux-toggle-popup.to-kill"
 ---@field flags tmux-toggle-popup.Flags? --- Additional flags for the session.
 
 ---@class tmux-toggle-popup.Flags
----@field no_border boolean? --- -B does not surround the popup by a border.
----@field close boolean? --- The -C flag closes any popup on the client.
----@field close_on_exit (true | 'on-success' | false)? --- -E closes the popup automatically when shell-command exits. Two -E closes the popup only if shell-command exited with success.
----@field border string? --- -b sets the type of characters used for drawing popup borders.  When -B is specified, the -b option is ignored.  See popup-border-lines for possible values for border-lines.
----@field target_client string? --- target-client
----@field start_directory ((fun (): string | nil) | string)? --- -d directory
+---@field no_border boolean? --- -B does not surround the popup by a border. floating-pane: -B none.
+---@field close boolean? --- The -C flag closes any popup on the client. floating-pane: ignored.
+---@field close_on_exit (true | 'on-success' | false)? --- -E closes the popup automatically when shell-command exits. Two -E closes the popup only if shell-command exited with success. floating-pane: the pane closes on exit, false keeps it open with -k.
+---@field border string? --- -b sets the type of characters used for drawing popup borders.  When -B is specified, the -b option is ignored.  See popup-border-lines for possible values for border-lines. floating-pane: -B.
+---@field target_client string? --- target-client. floating-pane: ignored.
+---@field start_directory ((fun (): string | nil) | string)? --- -d directory. floating-pane: -c.
 ---@field popup_style string? --- -s sets the style for the popup (see “STYLES”).
 ---@field border_style string? --- -S sets the style for the popup border (see “STYLES”).
----@field target_pane string? --- target-pane
+---@field target_pane string? --- target-pane. floating-pane: -t.
 ---@field title ((fun (session: tmux-toggle-popup.Session): string) | string)? --- -T is a format for the popup title (see “FORMATS”).
 
 ---@class tmux-toggle-popup.ToggleKeymap
@@ -111,6 +115,8 @@ function M.open(opts)
 
   local session = M.format(opts)
 
+  M.cache_tmux_popup_backend()
+
   local args = {
     "--name",
     opts.name,
@@ -118,9 +124,21 @@ function M.open(opts)
     opts.socket_name,
     "--id-format",
     session,
-    ("-w%s%%"):format(ui.width),
-    ("-h%s%%"):format(ui.height),
   }
+
+  if M._.backend == "floating-pane" then
+    vim.list_extend(args, {
+      ("-x%s%%"):format(ui.width),
+      ("-y%s%%"):format(ui.height),
+      ("-X%s%%"):format(math.floor((100 - ui.width) / 2)),
+      ("-Y%s%%"):format(math.floor((100 - ui.height) / 2)),
+    })
+  else
+    vim.list_extend(args, {
+      ("-w%s%%"):format(ui.width),
+      ("-h%s%%"):format(ui.height),
+    })
+  end
 
   if opts.toggle and opts.toggle.key then
     vim.list_extend(args, { "--toggle-key", opts.toggle.key })
@@ -170,7 +188,11 @@ function M.open(opts)
     table.insert(args, utils.tmux_serialize(opts.after_close, opts, session))
   end
 
-  vim.list_extend(args, M.parse_flags(opts))
+  if M._.backend == "floating-pane" then
+    vim.list_extend(args, M.parse_floating_pane_flags(opts))
+  else
+    vim.list_extend(args, M.parse_flags(opts))
+  end
 
   if opts.command then
     vim.list_extend(args, opts.command)
@@ -225,6 +247,81 @@ function M.cache_tmux_toggle_command()
 
     log.debug("Tmux toggle script: %s", M._.toggle_command)
   end
+end
+
+function M.cache_tmux_popup_backend()
+  if not M._.backend then
+    local stdout, _ = Job:new({
+      command = "tmux",
+      args = { "display", "-p", "#{@popup-backend}" },
+    }):sync(1000)
+
+    if not stdout or #stdout > 1 then
+      error("Can not cache popup backend.")
+    end
+
+    M._.backend = (stdout[1] == nil or stdout[1] == "") and "legacy-popup" or stdout[1]
+
+    log.debug("Tmux popup backend: %s", M._.backend)
+  end
+end
+
+--- Closes the popup covering the client or the window of the current neovim instance.
+---@return boolean
+function M.close()
+  if not utils.is_tmux() or not vim.env["TMUX_PANE"] then
+    log.debug("Not running inside tmux, nothing to close.")
+
+    return false
+  end
+
+  M.cache_tmux_popup_backend()
+
+  if M._.backend == "floating-pane" then
+    local stdout, _ = Job:new({
+      command = "tmux",
+      args = { "list-panes", "-t", vim.env["TMUX_PANE"], "-F", "#{pane_modal_flag} #{pane_id}" },
+    }):sync(1000)
+
+    for _, line in ipairs(stdout or {}) do
+      local modal, pane = line:match("^(%d) (%%%d+)$")
+
+      if modal == "1" then
+        local job = Job:new({
+          command = "tmux",
+          args = { "kill-pane", "-t", pane },
+        })
+        job:sync(1000)
+
+        log.debug("Closed floating pane: %s", pane)
+
+        return job.code == 0
+      end
+    end
+
+    log.debug("No floating pane to close in the window of: %s", vim.env["TMUX_PANE"])
+
+    return false
+  end
+
+  local stdout, _ = Job:new({
+    command = "tmux",
+    args = { "display-message", "-p", "-t", vim.env["TMUX_PANE"], "#{client_tty}" },
+  }):sync(1000)
+
+  if not stdout or #stdout == 0 or stdout[1] == "" then
+    log.debug("Can not find the client for: %s", vim.env["TMUX_PANE"])
+
+    return false
+  end
+
+  local job = Job:new({
+    command = "tmux",
+    args = { "display-popup", "-c", stdout[1], "-C" },
+  })
+  job:sync(1000)
+
+  return job.code == 0
 end
 
 --- Aborts the kill process on the matching popup.
@@ -398,6 +495,58 @@ function M.parse_flags(opts)
 
   if opts.flags.target_pane then
     vim.list_extend(flags, { "-p", opts.flags.target_pane })
+  end
+
+  if opts.flags.title then
+    if type(opts.flags.title) == "function" then
+      opts.flags.title = opts.flags.title(opts)
+    end
+
+    if opts.flags.title ~= nil then
+      vim.list_extend(flags, { "-T", opts.flags.title })
+    end
+  end
+
+  return flags
+end
+
+---@param opts tmux-toggle-popup.Session
+---@return string[]
+function M.parse_floating_pane_flags(opts)
+  local flags = {}
+
+  if opts.flags.no_border then
+    vim.list_extend(flags, { "-B", "none" })
+  elseif opts.flags.border then
+    vim.list_extend(flags, { "-B", opts.flags.border })
+  end
+
+  if opts.flags.close_on_exit == false then
+    table.insert(flags, "-k")
+  elseif opts.flags.close_on_exit == "on-failure" then
+    log.debug("Floating panes can not stay open only on failure, closing on exit instead.")
+  end
+
+  if opts.flags.start_directory then
+    if type(opts.flags.start_directory) == "function" then
+      opts.flags.start_directory = opts.flags.start_directory()
+    end
+
+    if opts.flags.start_directory ~= nil then
+      vim.list_extend(flags, { "-c", opts.flags.start_directory })
+    end
+  end
+
+  if opts.flags.popup_style then
+    vim.list_extend(flags, { "-s", opts.flags.popup_style })
+  end
+
+  if opts.flags.border_style then
+    vim.list_extend(flags, { "-S", opts.flags.border_style })
+  end
+
+  if opts.flags.target_pane then
+    vim.list_extend(flags, { "-t", opts.flags.target_pane })
   end
 
   if opts.flags.title then

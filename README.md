@@ -37,6 +37,16 @@ if "test ! -d ~/.config/tmux/plugins/tpm" \
 run '~/.config/tmux/plugins/tpm/tpm'
 ```
 
+### Backends
+
+The original plugin can open popups through two backends, selected with its `@popup-backend` option: `legacy-popup` (the default, built on `display-popup`) or `floating-pane` (built on `new-pane`, tmux 3.8 or later). This plugin reads `@popup-backend` once and translates the session flags for it, so the same configuration works on both.
+
+On `floating-pane` the popup is a modal floating pane centred in the window. `close_on_exit = false` keeps it open with `-k`, `start_directory` is passed as `-c`, and `no_border` becomes `-B none`. `close`, `target_client` and `close_on_exit = "on-failure"` have no floating pane equivalent and are ignored.
+
+```tmux
+set -g @popup-backend 'floating-pane'
+```
+
 ### `lazy.nvim`
 
 ```lua
@@ -88,15 +98,15 @@ Setup function will set the defaults for your any other API calls like the `open
 -- The flags does reside in the .flags table.
 
 ---@class tmux-toggle-popup.Flags
----@field no_border boolean? --- -B does not surround the popup by a border.
----@field close boolean? --- The -C flag closes any popup on the client.
----@field close_on_exit (true | 'on-success' | false)? --- -E closes the popup automatically when shell-command exits. Two -E closes the popup only if shell-command exited with success.
----@field border string? --- -b sets the type of characters used for drawing popup borders.  When -B is specified, the -b option is ignored.  See popup-border-lines for possible values for border-lines.
----@field target_client string? --- target-client
----@field start_directory ((fun (): string | nil) | string)? --- -d directory
+---@field no_border boolean? --- -B does not surround the popup by a border. floating-pane: -B none.
+---@field close boolean? --- The -C flag closes any popup on the client. floating-pane: ignored.
+---@field close_on_exit (true | 'on-success' | false)? --- -E closes the popup automatically when shell-command exits. Two -E closes the popup only if shell-command exited with success. floating-pane: the pane closes on exit, false keeps it open with -k.
+---@field border string? --- -b sets the type of characters used for drawing popup borders.  When -B is specified, the -b option is ignored.  See popup-border-lines for possible values for border-lines. floating-pane: -B.
+---@field target_client string? --- target-client. floating-pane: ignored.
+---@field start_directory ((fun (): string | nil) | string)? --- -d directory. floating-pane: -c.
 ---@field popup_style string? --- -s sets the style for the popup (see “STYLES”).
 ---@field border_style string? --- -S sets the style for the popup border (see “STYLES”).
----@field target_pane string? --- target-pane
+---@field target_pane string? --- target-pane. floating-pane: -t.
 ---@field title ((fun (session: tmux-toggle-popup.Session): string) | string)? --- -T is a format for the popup title (see “FORMATS”).
 
 -- The keymap configuration does reside in the .toggle table.
@@ -166,6 +176,14 @@ require("tmux-toggle-popup").setup({
 ```
 
 Just becareful that session settings are shared between your current session and the popup, so if you make a binding on the popup, that ultimately affects your current session as well.
+
+### Close the Popup
+
+You can close the popup that is covering the current `neovim` instance, for example before opening a file from it in the parent instance. On `legacy-popup` it closes the popup on the current client, on `floating-pane` it closes the modal floating pane in the current window.
+
+```lua
+require("tmux-toggle-popup").close()
+```
 
 ### Save Your Session
 
